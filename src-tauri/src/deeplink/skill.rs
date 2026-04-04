@@ -1,6 +1,7 @@
 //! Skill import from deep link
 //!
-//! Handles importing skill repository configurations via ccswitch:// URLs.
+//! Handles importing skill repository configurations via public `bianma://`
+//! links and legacy `ccswitch://` links.
 
 use super::DeepLinkImportRequest;
 use crate::error::AppError;

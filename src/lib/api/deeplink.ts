@@ -7,7 +7,7 @@ export interface DeepLinkImportRequest {
   resource: ResourceType;
 
   // Common fields
-  app?: "claude" | "codex" | "gemini";
+  app?: "claude" | "codex" | "gemini" | "opencode" | "openclaw";
   name?: string;
   enabled?: boolean;
 
@@ -27,7 +27,7 @@ export interface DeepLinkImportRequest {
   description?: string;
 
   // MCP fields
-  apps?: string; // "claude,codex,gemini"
+  apps?: string; // "claude,codex,gemini,opencode,openclaw"
 
   // Skill fields
   repo?: string;
@@ -72,7 +72,7 @@ export type ImportResult =
 export const deeplinkApi = {
   /**
    * Parse a deep link URL
-   * @param url The ccswitch:// URL to parse
+   * @param url The deep-link URL to parse (bianma:// primary, ccswitch:// legacy)
    * @returns Parsed deep link request
    */
   parseDeeplink: async (url: string): Promise<DeepLinkImportRequest> => {

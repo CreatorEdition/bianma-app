@@ -1,6 +1,7 @@
 //! Prompt import from deep link
 //!
-//! Handles importing prompt configurations via ccswitch:// URLs.
+//! Handles importing prompt configurations via public `bianma://` links and
+//! legacy `ccswitch://` links.
 
 use super::utils::decode_base64_param;
 use super::DeepLinkImportRequest;

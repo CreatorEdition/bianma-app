@@ -1,8 +1,9 @@
-//! Deep link import functionality for CC Switch
+//! Deep link import functionality.
 //!
-//! This module implements the ccswitch:// protocol for importing configurations
-//! via deep links. Supports importing:
-//! - Provider configurations (Claude/Codex/Gemini)
+//! This module implements the public `bianma://` protocol for importing
+//! configurations via deep links, while retaining backward compatibility for
+//! legacy `ccswitch://` links. Supports importing:
+//! - Provider configurations (Claude/Codex/Gemini/OpenCode/OpenClaw)
 //! - MCP server configurations
 //! - Prompts
 //! - Skills
@@ -29,8 +30,8 @@ pub use skill::import_skill_from_deeplink;
 
 /// Deep link import request model
 ///
-/// Represents a parsed ccswitch:// URL ready for processing.
-/// This struct contains all possible fields for all resource types.
+/// Represents a parsed deep-link URL ready for processing.
+/// This struct contains all possible fields for all supported resource types.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DeepLinkImportRequest {
@@ -40,7 +41,7 @@ pub struct DeepLinkImportRequest {
     pub resource: String,
 
     // ============ Common fields ============
-    /// Target application (claude/codex/gemini) - for provider, prompt, skill
+    /// Target application (claude/codex/gemini/opencode/openclaw) - for provider, prompt, skill
     #[serde(skip_serializing_if = "Option::is_none")]
     pub app: Option<String>,
     /// Resource name
@@ -88,7 +89,7 @@ pub struct DeepLinkImportRequest {
     pub description: Option<String>,
 
     // ============ MCP-specific fields ============
-    /// Target applications for MCP (comma-separated: "claude,codex,gemini")
+    /// Target applications for MCP (comma-separated: "claude,codex,gemini,opencode,openclaw")
     #[serde(skip_serializing_if = "Option::is_none")]
     pub apps: Option<String>,
 

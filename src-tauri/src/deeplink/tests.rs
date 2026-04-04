@@ -17,7 +17,7 @@ use std::sync::Arc;
 
 #[test]
 fn test_parse_valid_claude_deeplink() {
-    let url = "ccswitch://v1/import?resource=provider&app=claude&name=Test%20Provider&homepage=https%3A%2F%2Fexample.com&endpoint=https%3A%2F%2Fapi.example.com&apiKey=sk-test-123&icon=claude";
+    let url = "bianma://v1/import?resource=provider&app=claude&name=Test%20Provider&homepage=https%3A%2F%2Fexample.com&endpoint=https%3A%2F%2Fapi.example.com&apiKey=sk-test-123&icon=claude";
 
     let request = parse_deeplink_url(url).unwrap();
 
@@ -32,6 +32,16 @@ fn test_parse_valid_claude_deeplink() {
     );
     assert_eq!(request.api_key, Some("sk-test-123".to_string()));
     assert_eq!(request.icon, Some("claude".to_string()));
+}
+
+#[test]
+fn test_parse_valid_legacy_ccswitch_deeplink() {
+    let url = "ccswitch://v1/import?resource=provider&app=claude&name=Legacy%20Provider&homepage=https%3A%2F%2Fexample.com&endpoint=https%3A%2F%2Fapi.example.com&apiKey=sk-legacy-123";
+
+    let request = parse_deeplink_url(url).unwrap();
+    assert_eq!(request.resource, "provider");
+    assert_eq!(request.app, Some("claude".to_string()));
+    assert_eq!(request.name, Some("Legacy Provider".to_string()));
 }
 
 #[test]
