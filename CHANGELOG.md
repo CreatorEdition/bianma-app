@@ -3,6 +3,7 @@
 All notable changes to bianma-app will be documented in this file.
 
 This file is a historical change record. For current public product positioning, protocol guidance, and user-facing documentation, use the README, the Chinese user manual, and the public `bianma://` protocol documentation as the primary entry.
+Legacy `CC Switch` / `ccswitch://` references, old artifact names, and sponsor mentions inside historical entries are preserved for archival accuracy and compatibility context rather than as current public guidance.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).

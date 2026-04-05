@@ -1,6 +1,10 @@
-# Flatpak Build Guide
+# bianma-app Flatpak Build Guide
 
-This directory contains the Flatpak manifest (`com.ccswitch.desktop`) for bianma-app, used to convert the generated `.deb` artifact into an installable `.flatpak` package via CI or local builds. The manifest and app ID still use the legacy `com.ccswitch.desktop` names so existing Flatpak tooling stays compatible, even though the runtime it installs is bianma-app.
+This directory contains the Flatpak manifest for `bianma-app`, used to convert the generated `.deb` artifact into an installable `.flatpak` package via CI or local builds.
+
+> Public brand: `bianma-app`. The `com.ccswitch.desktop`, `cc-switch.deb`, and `CC-Switch-Linux.flatpak` identifiers documented below are retained only for Flatpak compatibility and existing tooling continuity.
+
+The manifest and app ID still use the legacy `com.ccswitch.desktop` names so existing Flatpak tooling stays compatible, even though the runtime it installs is bianma-app.
 
 ## Dependencies
 
