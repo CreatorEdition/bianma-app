@@ -2,7 +2,7 @@
 
 AI coding CLI 向けのオープンソースデスクトップ制御パネル。
 
-[English](README.md) | [中文](README_ZH.md) | 日本語 | [Changelog](CHANGELOG.md) | [ZH Manual](docs/user-manual/zh/README.md)
+[中文](README.md) | [中文補足](README_ZH.md) | 日本語 | [Changelog](CHANGELOG.md) | [ZH Manual](docs/user-manual/zh/README.md)
 
 ## 概要
 
@@ -17,8 +17,6 @@ AI coding CLI 向けのオープンソースデスクトップ制御パネル。
 - 本リポジトリは公開可能なコア機能、公開プロトコル文書、移行と互換ガイド、コミュニティ貢献を扱います。
 - 完全な公式プロダクト機能は、公式版で提供される場合があります。
 - 私有リリース運用、私有 updater、内部ガバナンス、内部ロードマップは扱いません。
-
-詳細は [Open Source Boundary](docs/project/open-source-boundary.md) を参照してください。
 
 ## クイックスタート
 
@@ -36,7 +34,6 @@ AI coding CLI 向けのオープンソースデスクトップ制御パネル。
 
 - [Chinese user manual](docs/user-manual/zh/README.md)
 - [Developer protocol doc](docs/developers/bianma-uri-protocol.md)
-- [Open-source boundary](docs/project/open-source-boundary.md)
 
 Historical release notes are archived for reference only and are not the primary current documentation entry.
 

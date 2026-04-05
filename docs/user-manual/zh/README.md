@@ -103,9 +103,8 @@
 | [5.4-env-conflict.md](./5-faq/5.4-env-conflict.md) | 环境变量冲突检测与处理 |
 | [5.5-migration-from-cc-switch.md](./5-faq/5.5-migration-from-cc-switch.md) | 从 CC Switch 迁移与 legacy 兼容说明 |
 
-## 边界与开发者入口
+## 开发者入口
 
-- [公有仓与官方产品层边界](../../project/open-source-boundary.md)
 - [开发者协议文档](../../developers/bianma-uri-protocol.md)
 
 ## 快速链接
