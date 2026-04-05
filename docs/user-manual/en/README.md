@@ -1,46 +1,34 @@
 # bianma-app User Manual
 
-> All-in-One Assistant for Claude Code / Codex / Gemini CLI / OpenCode / OpenClaw
+> English mirror of the public bianma-app documentation for Claude Code / Codex / Gemini CLI / OpenCode / OpenClaw.
 
-## Table of Contents
+This manual follows the Chinese documentation as the canonical public source.
 
-```
-bianma-app User Manual
-│
-├── 1. Getting Started
-│   ├── 1.1 Introduction
-│   ├── 1.2 Installation Guide
-│   ├── 1.3 Interface Overview
-│   ├── 1.4 Quick Start
-│   └── 1.5 Personalization
-│
-├── 2. Provider Management
-│   ├── 2.1 Add Provider
-│   ├── 2.2 Switch Provider
-│   ├── 2.3 Edit Provider
-│   ├── 2.4 Sort & Duplicate
-│   └── 2.5 Usage Query
-│
-├── 3. Extensions
-│   ├── 3.1 MCP Server Management
-│   ├── 3.2 Prompts Management
-│   ├── 3.3 Skills Management
-│   ├── 3.4 Session Manager
-│   └── 3.5 Workspace & Memory
-│
-├── 4. Proxy & High Availability
-│   ├── 4.1 Proxy Service
-│   ├── 4.2 App Takeover
-│   ├── 4.3 Failover
-│   ├── 4.4 Usage Statistics
-│   └── 4.5 Model Test
-│
-└── 5. FAQ
-    ├── 5.1 Configuration Files
-    ├── 5.2 FAQ
-    ├── 5.3 Deep Link Protocol
-    └── 5.4 Environment Variable Conflicts
-```
+## Recommended Reading Order
+
+1. [Chinese user manual](../zh/README.md) for the primary public entry
+2. [1.1 Introduction](./1-getting-started/1.1-introduction.md)
+3. [1.2 Installation Guide](./1-getting-started/1.2-installation.md)
+4. [1.4 Quick Start](./1-getting-started/1.4-quickstart.md)
+5. [5.3 Deep Link Protocol (`bianma://`)](./5-faq/5.3-deeplink.md)
+6. [Migration from CC Switch (ZH)](../zh/5-faq/5.5-migration-from-cc-switch.md)
+
+## Positioning
+
+This public repository documents the open-source core, community layer, compatibility layer, and public integration surface of bianma-app.
+
+- Public brand: `bianma-app`
+- Primary public URI scheme: `bianma://`
+- Legacy `ccswitch://`: migration and backward compatibility only
+
+## Key Links
+
+- [Chinese user manual](../zh/README.md)
+- [Developer URI protocol](../../developers/bianma-uri-protocol.md)
+- [Migration from CC Switch (ZH)](../zh/5-faq/5.5-migration-from-cc-switch.md)
+- [CHANGELOG](../../../CHANGELOG.md)
+
+Historical release notes under `docs/release-notes/` are archival records and should not be treated as the primary current documentation entry.
 
 ## File List
 
@@ -48,8 +36,8 @@ bianma-app User Manual
 
 | File | Description |
 |------|-------------|
-| [1.1-introduction.md](./1-getting-started/1.1-introduction.md) | Introduction, core features, supported platforms |
-| [1.2-installation.md](./1-getting-started/1.2-installation.md) | Windows/macOS/Linux installation guide |
+| [1.1-introduction.md](./1-getting-started/1.1-introduction.md) | Introduction, public positioning, supported tools |
+| [1.2-installation.md](./1-getting-started/1.2-installation.md) | Installation and local development setup |
 | [1.3-interface.md](./1-getting-started/1.3-interface.md) | Interface layout, navigation bar, provider cards |
 | [1.4-quickstart.md](./1-getting-started/1.4-quickstart.md) | 5-minute quick start tutorial |
 | [1.5-settings.md](./1-getting-started/1.5-settings.md) | Language, theme, directories, cloud sync settings |
@@ -84,32 +72,16 @@ bianma-app User Manual
 | [4.4-usage.md](./4-proxy/4.4-usage.md) | Usage statistics, trend charts, pricing configuration |
 | [4.5-model-test.md](./4-proxy/4.5-model-test.md) | Model test, health check, latency testing |
 
-### 5. FAQ
+### 5. FAQ / Protocol / Migration
 
 | File | Description |
 |------|-------------|
 | [5.1-config-files.md](./5-faq/5.1-config-files.md) | bianma-app storage, CLI configuration file formats |
 | [5.2-questions.md](./5-faq/5.2-questions.md) | Frequently asked questions |
-| [5.3-deeplink.md](./5-faq/5.3-deeplink.md) | Deep link protocol, generation and usage |
+| [5.3-deeplink.md](./5-faq/5.3-deeplink.md) | Public deep link protocol and usage |
 | [5.4-env-conflict.md](./5-faq/5.4-env-conflict.md) | Environment variable conflict detection and resolution |
 
-## Quick Links
-
-- **New users**: Start with [1.1 Introduction](./1-getting-started/1.1-introduction.md)
-- **Installation issues**: See [1.2 Installation Guide](./1-getting-started/1.2-installation.md)
-- **Configure providers**: See [2.1 Add Provider](./2-providers/2.1-add.md)
-- **Using proxy**: See [4.1 Proxy Service](./4-proxy/4.1-service.md)
-- **Having trouble**: See [5.2 FAQ](./5-faq/5.2-questions.md)
-
-## Version Information
-
-- Documentation version: v3.12.3
-- Last updated: 2026-04-04
-- Applicable to bianma-app v3.12.3+
-
 ## Contributing
-
-Feel free to submit Issues or PRs to improve the documentation:
 
 - [GitHub Issues](https://github.com/CreatorEdition/bianma-app/issues)
 - [GitHub Repository](https://github.com/CreatorEdition/bianma-app)

@@ -2,6 +2,8 @@
 
 All notable changes to bianma-app will be documented in this file.
 
+This file is a historical change record. For current public product positioning, protocol guidance, and user-facing documentation, use the README, the Chinese user manual, and the public `bianma://` protocol documentation as the primary entry.
+
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
@@ -93,7 +95,7 @@ Post-v3.12.1 work focuses on Common Config safety during proxy takeover and more
 
 ### Patch Release
 
-Stability-focused patch release fixing the Common Config modal infinite reopen loop, a WebDAV sync foreign key constraint failure, several i18n interpolation issues, and a Windows toolbar compact mode bug. Also adds **StepFun** provider presets, **OpenClaw input type selection** and **authHeader** support, upgrades Gemini to **3.1-pro**, and records four sponsor partner updates in the historical release record.
+Stability-focused patch release fixing the Common Config modal infinite reopen loop, a WebDAV sync foreign key constraint failure, several i18n interpolation issues, and a Windows toolbar compact mode bug. Also adds **StepFun** provider presets, **OpenClaw input type selection** and **authHeader** support, upgrades Gemini to **3.1-pro**, and preserves four sponsor partner updates solely as historical references within this release record.
 
 **Stats**: 19 commits | 56 files changed | +1,429 insertions | -396 deletions
 
@@ -108,12 +110,12 @@ Stability-focused patch release fixing the Common Config modal infinite reopen l
 - **Input Type Selection**: Added input type selection dropdown for model Advanced Options in OpenClaw configuration form (#1368, thanks @liuxxxu)
 - **authHeader Field**: Added optional `authHeader` boolean to OpenClawProviderConfig for vendor-specific auth header support (e.g. Longcat), and refactored form state to reuse the shared type
 
-#### Sponsor Partners
+#### Sponsor Partners (archival)
 
-- **Micu API**: Added Micu API as sponsor partner
-- **XCodeAPI**: Added XCodeAPI as sponsor partner
-- **SiliconFlow**: Added SiliconFlow (硅基流动) as sponsor partner
-- **CTok**: Added CTok as sponsor partner
+- **Micu API**: Documented in this release record as a sponsor partner for historical reference.
+- **XCodeAPI**: Documented in this release record as a sponsor partner for historical reference.
+- **SiliconFlow**: Documented in this release record as a sponsor partner (SiliconFlow / 硅基流动) for historical reference.
+- **CTok**: Documented in this release record as a sponsor partner for historical reference.
 
 ### Changed
 
