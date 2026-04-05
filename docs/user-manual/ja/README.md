@@ -11,7 +11,7 @@
 3. [1.2 インストールガイド](./1-getting-started/1.2-installation.md)
 4. [1.4 クイックスタート](./1-getting-started/1.4-quickstart.md)
 5. [5.3 ディープリンクプロトコル（`bianma://`）](./5-faq/5.3-deeplink.md)
-6. [CC Switch からの移行（ZH）](../zh/5-faq/5.5-migration-from-cc-switch.md)
+6. [移行互換ガイド（ZH）](../zh/5-faq/5.5-migration-compatibility.md)
 
 ## 公開ドキュメントの位置づけ
 
@@ -25,7 +25,7 @@
 
 - [中文ユーザーマニュアル](../zh/README.md)
 - [bianma URI プロトコル](../../developers/bianma-uri-protocol.md)
-- [CC Switch からの移行（ZH）](../zh/5-faq/5.5-migration-from-cc-switch.md)
+- [移行互換ガイド（ZH）](../zh/5-faq/5.5-migration-compatibility.md)
 - [CHANGELOG](../../../CHANGELOG.md)
 
 `docs/release-notes/` 配下の過去リリースノートはアーカイブ用途であり、現行の主ドキュメント入口ではありません。
@@ -80,6 +80,7 @@
 | [5.2-questions.md](./5-faq/5.2-questions.md) | よくある質問と回答 |
 | [5.3-deeplink.md](./5-faq/5.3-deeplink.md) | 公開ディープリンクプロトコルと使い方 |
 | [5.4-env-conflict.md](./5-faq/5.4-env-conflict.md) | 環境変数の競合検出と対処 |
+| [../zh/5-faq/5.5-migration-compatibility.md](../zh/5-faq/5.5-migration-compatibility.md) | 移行互換ガイド（中国語主版） |
 
 ## コントリビュート
 

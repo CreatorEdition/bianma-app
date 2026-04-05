@@ -11,7 +11,7 @@ This manual follows the Chinese documentation as the canonical public source.
 3. [1.2 Installation Guide](./1-getting-started/1.2-installation.md)
 4. [1.4 Quick Start](./1-getting-started/1.4-quickstart.md)
 5. [5.3 Deep Link Protocol (`bianma://`)](./5-faq/5.3-deeplink.md)
-6. [Migration from CC Switch (ZH)](../zh/5-faq/5.5-migration-from-cc-switch.md)
+6. [Migration compatibility guide (ZH)](../zh/5-faq/5.5-migration-compatibility.md)
 
 ## Positioning
 
@@ -25,7 +25,7 @@ This public repository documents the open-source core, community layer, compatib
 
 - [Chinese user manual](../zh/README.md)
 - [Developer URI protocol](../../developers/bianma-uri-protocol.md)
-- [Migration from CC Switch (ZH)](../zh/5-faq/5.5-migration-from-cc-switch.md)
+- [Migration compatibility guide (ZH)](../zh/5-faq/5.5-migration-compatibility.md)
 - [CHANGELOG](../../../CHANGELOG.md)
 
 Historical release notes under `docs/release-notes/` are archival records and should not be treated as the primary current documentation entry.
@@ -80,6 +80,7 @@ Historical release notes under `docs/release-notes/` are archival records and sh
 | [5.2-questions.md](./5-faq/5.2-questions.md) | Frequently asked questions |
 | [5.3-deeplink.md](./5-faq/5.3-deeplink.md) | Public deep link protocol and usage |
 | [5.4-env-conflict.md](./5-faq/5.4-env-conflict.md) | Environment variable conflict detection and resolution |
+| [../zh/5-faq/5.5-migration-compatibility.md](../zh/5-faq/5.5-migration-compatibility.md) | Migration compatibility guide (Chinese-first) |
 
 ## Contributing
 

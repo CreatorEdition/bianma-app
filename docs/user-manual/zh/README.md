@@ -10,7 +10,7 @@
 2. [1.2 安装指南](./1-getting-started/1.2-installation.md)
 3. [1.4 快速上手](./1-getting-started/1.4-quickstart.md)
 4. [5.3 深度链接协议（`bianma://`）](./5-faq/5.3-deeplink.md)
-5. [5.5 从 CC Switch 迁移](./5-faq/5.5-migration-from-cc-switch.md)
+5. [5.5 迁移与旧协议兼容](./5-faq/5.5-migration-compatibility.md)
 
 ## 目录结构
 
@@ -50,10 +50,10 @@
     ├── 5.2 常见问题
     ├── 5.3 深度链接协议（bianma://）
     ├── 5.4 环境变量冲突
-    └── 5.5 从 CC Switch 迁移
+    └── 5.5 迁移与旧协议兼容
 ```
 
-> 5.5 从 CC Switch 迁移 章节仅用于旧版的迁移与兼容场景，其他内容均围绕 bianma-app 展开，不再正式使用 CC Switch 术语。
+> 5.5 迁移与旧协议兼容 章节仅用于旧版命名和旧协议的迁移与兼容场景，其他内容均围绕 bianma-app 展开，不再正式使用旧品牌术语。
 
 ## 文件列表
 
@@ -105,7 +105,7 @@
 | [5.2-questions.md](./5-faq/5.2-questions.md) | 常见问题解答 |
 | [5.3-deeplink.md](./5-faq/5.3-deeplink.md) | 公开深度链接协议与使用方法 |
 | [5.4-env-conflict.md](./5-faq/5.4-env-conflict.md) | 环境变量冲突检测与处理 |
-| [5.5-migration-from-cc-switch.md](./5-faq/5.5-migration-from-cc-switch.md) | 从 CC Switch 迁移与 legacy 兼容说明 |
+| [5.5-migration-compatibility.md](./5-faq/5.5-migration-compatibility.md) | 迁移与 legacy 兼容说明 |
 
 ## 开发者入口
 
@@ -117,7 +117,7 @@
 - **安装问题**：查看 [1.2 安装指南](./1-getting-started/1.2-installation.md)
 - **配置供应商**：查看 [2.1 添加供应商](./2-providers/2.1-add.md)
 - **协议接入**：查看 [5.3 深度链接协议（`bianma://`）](./5-faq/5.3-deeplink.md)
-- **历史迁移**：查看 [5.5 从 CC Switch 迁移](./5-faq/5.5-migration-from-cc-switch.md)
+- **历史迁移**：查看 [5.5 迁移与旧协议兼容](./5-faq/5.5-migration-compatibility.md)
 - **遇到问题**：查看 [5.2 常见问题](./5-faq/5.2-questions.md)
 
 历史 release notes 仅作归档，不作为当前主入口文档。

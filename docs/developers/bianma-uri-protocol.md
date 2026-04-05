@@ -90,4 +90,4 @@ New public integrations should use `bianma://`.
 
 Legacy behavior is described only in migration/compatibility documentation:
 
-- [Migration guide (ZH)](../user-manual/zh/5-faq/5.5-migration-from-cc-switch.md)
+- [Migration compatibility guide (ZH)](../user-manual/zh/5-faq/5.5-migration-compatibility.md)
