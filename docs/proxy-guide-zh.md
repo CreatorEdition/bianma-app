@@ -2,7 +2,7 @@
 
 ## 功能介绍
 
-> **中文主入口**：本指南只是概览，详尽内容请优先阅读 [中文用户手册](../user-manual/zh/README.md)；English/日本語 版本为参考。
+> **中文主入口**：本指南只是概览，详尽内容请优先阅读 [中文用户手册](./user-manual/zh/README.md)；English/日本語 版本为参考。
 
 bianma-app 的代理功能是一个本地 HTTP 代理服务器，可以统一管理 Claude Code、Codex 和 Gemini CLI 的 API 请求。主要特性包括：
 

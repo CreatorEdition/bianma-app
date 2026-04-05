@@ -9,7 +9,7 @@ bianma-app is an open-source project maintained by volunteers. We're happy to he
 > **中文主入口**：大多数问题可优先在 [中文用户手册](docs/user-manual/zh/README.md) 中查找，其他语言版本作为补充。
 ### Before Asking
 
-1. **Read the [FAQ](https://github.com/CreatorEdition/bianma-app#faq)** — most common questions are answered there.
+1. **Read the [Chinese FAQ section](docs/user-manual/zh/README.md#5-faq--协议--迁移)** — most common questions are answered there.
 2. **Search [existing issues](https://github.com/CreatorEdition/bianma-app/issues)** (including closed ones) — someone may have had the same question.
 
 ### Asking a Question
@@ -40,7 +40,7 @@ bianma-app 是一个由志愿者维护的开源项目。我们很乐意提供帮
 
 ### 提问之前
 
-1. **阅读 [常见问题](https://github.com/CreatorEdition/bianma-app#常见问题)** — 大多数常见问题都已在其中解答。
+1. **阅读 [中文 FAQ 章节](docs/user-manual/zh/README.md#5-faq--协议--迁移)** — 大多数常见问题都已在其中解答。
 2. **搜索 [已有的 Issue](https://github.com/CreatorEdition/bianma-app/issues)**（包括已关闭的） — 可能已经有人问过相同的问题。
 
 ### 提问
