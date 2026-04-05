@@ -871,6 +871,8 @@ pub fn run() {
             commands::set_rectifier_config,
             commands::get_optimizer_config,
             commands::set_optimizer_config,
+            commands::get_copilot_optimizer_config,
+            commands::set_copilot_optimizer_config,
             commands::get_log_config,
             commands::set_log_config,
             commands::restart_app,
@@ -892,6 +894,9 @@ pub fn run() {
             // usage query
             commands::queryProviderUsage,
             commands::testUsageScript,
+            // subscription quota
+            commands::get_subscription_quota,
+            commands::get_coding_plan_quota,
             // New MCP via config.json (SSOT)
             commands::get_mcp_config,
             commands::upsert_mcp_server_in_config,
@@ -910,6 +915,8 @@ pub fn run() {
             commands::enable_prompt,
             commands::import_prompt_from_file,
             commands::get_current_prompt_file_content,
+            // model list fetch (OpenAI-compatible /v1/models)
+            commands::fetch_models_for_config,
             // ours: endpoint speed test + custom endpoint management
             commands::test_api_endpoints,
             commands::get_custom_endpoints,
