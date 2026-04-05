@@ -1,12 +1,13 @@
-# CC Switch User Manual / 用户手册 / ユーザーマニュアル
+# bianma-app User Manual / 中文 / English / 日本語
 
 > Claude Code / Codex / Gemini CLI / OpenCode / OpenClaw
+> **Primary entry**: Start with the Chinese user manual before consulting the English or Japanese mirrors; the other languages follow that canonical content.
 
-## Language / 语言 / 言語
+## Language / 語言 / Language
 
 | Language | Link |
 |----------|------|
-| [中文](./zh/README.md) | 简体中文用户手册 |
+| [中文](./zh/README.md) | Primary entry (canonical documentation) |
 | [English](./en/README.md) | English User Manual |
 | [日本語](./ja/README.md) | 日本語ユーザーマニュアル |
 
@@ -14,9 +15,9 @@
 
 - Documentation version: v3.12.3
 - Last updated: 2026-04-02
-- Compatible with CC Switch v3.12.0+
+- Compatible with bianma-app v3.12.0+
 
 ## Links
 
-- [GitHub Issues](https://github.com/farion1231/cc-switch/issues)
-- [GitHub Repository](https://github.com/farion1231/cc-switch)
+- [GitHub Issues](https://github.com/CreatorEdition/bianma-app/issues)
+- [GitHub Repository](https://github.com/CreatorEdition/bianma-app)

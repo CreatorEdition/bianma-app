@@ -2,6 +2,8 @@
 
 本手册面向 `bianma-app` 公有仓的开源核心与公开接入能力。
 
+> **中文主入口**：本文档是 bianma-app 官方推荐的首选入口，English 与日本語 版本为翻译镜像。
+
 ## 建议阅读顺序
 
 1. [1.1 软件介绍](./1-getting-started/1.1-introduction.md)
@@ -50,6 +52,8 @@
     ├── 5.4 环境变量冲突
     └── 5.5 从 CC Switch 迁移
 ```
+
+> 5.5 从 CC Switch 迁移 章节仅用于旧版的迁移与兼容场景，其他内容均围绕 bianma-app 展开，不再正式使用 CC Switch 术语。
 
 ## 文件列表
 

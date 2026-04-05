@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to CC Switch will be documented in this file.
+All notable changes to bianma-app will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -93,7 +93,7 @@ Post-v3.12.1 work focuses on Common Config safety during proxy takeover and more
 
 ### Patch Release
 
-Stability-focused patch release fixing the Common Config modal infinite reopen loop, a WebDAV sync foreign key constraint failure, several i18n interpolation issues, and a Windows toolbar compact mode bug. Also adds **StepFun** provider presets, **OpenClaw input type selection** and **authHeader** support, upgrades Gemini to **3.1-pro**, and welcomes four new sponsor partners.
+Stability-focused patch release fixing the Common Config modal infinite reopen loop, a WebDAV sync foreign key constraint failure, several i18n interpolation issues, and a Windows toolbar compact mode bug. Also adds **StepFun** provider presets, **OpenClaw input type selection** and **authHeader** support, upgrades Gemini to **3.1-pro**, and records four sponsor partner updates in the historical release record.
 
 **Stats**: 19 commits | 56 files changed | +1,429 insertions | -396 deletions
 
@@ -110,15 +110,14 @@ Stability-focused patch release fixing the Common Config modal infinite reopen l
 
 #### Sponsor Partners
 
-- **Micu API**: Added Micu API as sponsor partner with affiliate links
+- **Micu API**: Added Micu API as sponsor partner
 - **XCodeAPI**: Added XCodeAPI as sponsor partner
-- **SiliconFlow**: Added SiliconFlow (硅基流动) as sponsor partner with affiliate links
+- **SiliconFlow**: Added SiliconFlow (硅基流动) as sponsor partner
 - **CTok**: Added CTok as sponsor partner
 
 ### Changed
 
 - **UCloud → Compshare**: Renamed UCloud provider to Compshare (优云智算) with full i18n support across all three locales (EN/ZH/JA)
-- **Compshare Links**: Updated Compshare sponsor registration links to coding-plan page
 - **Gemini Model Upgrade**: Upgraded default Gemini model from 2.5-pro to 3.1-pro in provider presets
 
 ### Fixed
@@ -306,7 +305,7 @@ This release introduces **OpenClaw** as the fifth supported application, a full 
 
 #### OpenClaw Support (New Application)
 
-- **OpenClaw Integration**: Full management support for OpenClaw as the fifth application in CC Switch, including provider switching, configuration panels (Env / Tools / Agents Defaults), Workspace file management (HEARTBEAT / BOOTSTRAP / BOOT), daily memory files, and additive overlay mode
+- **OpenClaw Integration**: Full management support for OpenClaw as the fifth application in bianma-app, including provider switching, configuration panels (Env / Tools / Agents Defaults), Workspace file management (HEARTBEAT / BOOTSTRAP / BOOT), daily memory files, and additive overlay mode
 - **OpenClaw Provider Presets**: 13+ built-in provider presets with brand icon and complete i18n (zh/en/ja)
 - **OpenClaw Form Fields**: Dedicated provider form with providerKey input, model allowlist auto-registration, and default model button
 - **OpenClaw Config Panels**: Env editor, Tools editor, and Agents Defaults editor backed by JSON5 read/write (`openclaw_config.rs`)
@@ -632,7 +631,7 @@ This release focuses on stability improvements and crash prevention.
 - **Proxy Panic Prevention** - Graceful degradation when HTTP client initialization fails due to invalid proxy settings; falls back to no_proxy mode (#560)
 - **UTF-8 Safety** - Fix potential panic when masking API keys or truncating logs containing multi-byte characters (Chinese, emoji, etc.) (#560)
 - **Default Proxy Port** - Change default port from 5000 to 15721 to avoid conflict with macOS AirPlay Receiver (#560)
-- **Windows Title** - Display "CC Switch" instead of default "Tauri app" in window title
+- **Windows Title** - Display "bianma-app" instead of default "Tauri app" in window title
 - **Windows/Linux Spacing** - Remove extra 28px blank space below native titlebar introduced in v3.9.0
 - **Flatpak Tray Icon** - Bundle libayatana-appindicator for tray icon support on Flatpak (#556)
 - **Provider Preset** - Correct casing from "AiGoCode" to "AIGoCode" to match official branding
@@ -685,7 +684,7 @@ This stable release includes all changes from `3.9.0-1`, `3.9.0-2`, and `3.9.0-3
 - **WebView Compatibility** - Add fallback for crypto.randomUUID() on older WebViews
 - **macOS Autostart** - Use `.app` bundle path to prevent terminal window popups
 - **Database** - Add missing schema migrations; show an error dialog on initialization failure with a retry option
-- **Import/Export** - Restrict SQL import to CC Switch exported backups only; refresh providers immediately after import
+- **Import/Export** - Restrict SQL import to bianma-app exported backups only; refresh providers immediately after import
 - **Prompts** - Allow saving prompts with empty content
 - **MCP Sync** - Skip sync when the target CLI app is not installed
 - **Common Config (Codex)** - Preserve MCP server `base_url` during extraction and remove provider-specific `model_providers` blocks
@@ -771,7 +770,7 @@ Second beta release focusing on proxy stability, import safety, and provider pre
 
 ### Fixed
 
-- **Import/Export** - Restrict SQL import to CC Switch exported backups only; refresh providers immediately after import
+- **Import/Export** - Restrict SQL import to bianma-app exported backups only; refresh providers immediately after import
 - **Proxy** - Respect existing Claude token when syncing; add fallback recovery for orphaned takeover state; remove global auto-start flag
 - **Windows** - Add minimum window size to Windows platform config
 - **UI** - Improve About section UI (#419) and unify header toolbar styling

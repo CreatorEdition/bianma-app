@@ -1,42 +1,34 @@
 # bianma-app
 
-AI coding CLI 向けのオープンソースデスクトップ制御パネル。
+bianma-app は Claude Code、Codex CLI、Gemini CLI、OpenCode、OpenClaw などの AI CLI を統合的に管理するコマンドラインツールで、拡張・設定・プロキシの操作を一か所で完結させます。対外的なブランドおよびドキュメントの起点はすべて bianma-app です。
 
-[中文](README.md) | [中文補足](README_ZH.md) | 日本語 | [Changelog](CHANGELOG.md) | [ZH Manual](docs/user-manual/zh/README.md)
+> **中文主入口**：bianma-app では中文ユーザーマニュアルを公式ファーストとして扱い、English と日本語版は翻訳ミラーとして参考にしてください。
 
 ## 概要
+CLI から直接複数のモデルや URI を切り替え、統一された設定体験とエクステンション管理を提供します。主線は bianma-app にあり、各種既存ツールはこの CLI の背後で動作します。
 
-`bianma-app` は Claude Code、Codex、Gemini CLI、OpenCode、OpenClaw など複数の AI CLI のプロバイダ設定と拡張設定を一元管理するためのデスクトップアプリです。
+## セットアップ
+1. Node.js 18+ と `pnpm` をインストールします。
+2. リポジトリで `pnpm install` を実行して依存を取得します。
+3. `pnpm dev` で Hot Reload 対応の開発サーバーを立ち上げます。
+4. `env.example` をコピーして `.env` を用意し、必要な変数を設定します。
 
-## オープンソースとしての位置づけ
+## ドキュメント & リソース
+- [中文ユーザーマニュアル](docs/user-manual/zh/README.md)（公式主入口）
+- [bianma URI プロトコル](docs/developers/bianma-uri-protocol.md)
+- [更新履歴 (Changelog)](CHANGELOG.md)
+- [セキュリティポリシー](SECURITY.md)
+- [CC Switch からの移行](docs/user-manual/zh/5-faq/5.5-migration-from-cc-switch.md)（移行・互換用途のみ）
 
-この公開リポジトリは、`bianma-app` のオープンソースコア、コミュニティ向けドキュメント、互換レイヤーの説明を提供します。
+## ドキュメント入口（中文優先）
+- [中文ユーザーマニュアル](docs/user-manual/zh/README.md)（推奨）
+- [English user manual](docs/user-manual/en/README.md)（参照用）
+- [日本語ユーザーマニュアル](docs/user-manual/ja/README.md)（参照用）
 
-## リポジトリ境界
-
-- 本リポジトリは公開可能なコア機能、公開プロトコル文書、移行と互換ガイド、コミュニティ貢献を扱います。
-- 完全な公式プロダクト機能は、公式版で提供される場合があります。
-- 私有リリース運用、私有 updater、内部ガバナンス、内部ロードマップは扱いません。
-
-## クイックスタート
-
-1. Node.js 18+ と `pnpm` をインストール。
-2. `pnpm install`
-3. `pnpm dev`
-4. アプリで最初のプロバイダを追加。
-
-## プロトコルと移行
-
-- 公開プロトコル: [`bianma://` ガイド](docs/user-manual/zh/5-faq/5.3-deeplink.md) (Chinese documentation)。
-- CC Switch からの移行: [migration guide](docs/user-manual/zh/5-faq/5.5-migration-from-cc-switch.md) (Chinese documentation)。
-
-## ドキュメント
-
-- [Chinese user manual](docs/user-manual/zh/README.md)
-- [Developer protocol doc](docs/developers/bianma-uri-protocol.md)
-
-Historical release notes are archived for reference only and are not the primary current documentation entry.
+## テスト & 品質
+- `pnpm typecheck`
+- `pnpm format:check`
+- `pnpm test:unit`
 
 ## Contributing
-
-Issue / Pull Request を歓迎します。
+Issue や Pull Request を通じて貢献できます。まず [Issue](https://github.com/CreatorEdition/bianma-app/issues) で相談し、PR を作成してください。

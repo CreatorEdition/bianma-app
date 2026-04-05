@@ -1,44 +1,30 @@
 # bianma-app
 
-面向 AI 编码 CLI 的开源桌面控制面板。
+bianma-app 是对 Claude Code、Codex CLI、Gemini CLI、OpenCode 与 OpenClaw 等 AI 编码工具的统一控制台，集中管理扩展、配置与代理，所有对外传播均以 bianma-app 品牌为准。
 
-[中文主入口](README.md) | 中文补充版 | [日本語](README_JA.md) | [更新日志](CHANGELOG.md) | [中文手册](docs/user-manual/zh/README.md)
+> **中文主入口**：bianma-app 以中文用户手册作为官方第一入口，English 与 日本語 版本仅作为翻译镜像供参考。
 
-## 项目简介
+## 项目定位
+bianma-app 搭建从代理到工具的全链路体验，集合 CLI、URI、配置与多语言文档，帮助团队稳定地完成模型接入与日常使用。
 
-`bianma-app` 用于统一管理 Claude Code、Codex、Gemini CLI、OpenCode、OpenClaw 的供应商配置与扩展配置，减少手动修改多套配置文件的成本。
+## 快速上手
+1. 安装 Node.js 18+ 与 `pnpm`，符合官方开发依赖。
+2. 进入仓库后运行 `pnpm install` 拉取依赖。
+3. 使用 `pnpm dev` 启动本地开发服务器和热更新功能。
+4. 如需自定义配置，请复制 `env.example` 为 `.env` 并调整变量值。
 
-## 开源核心定位
+## 文档与资源
+- [中文用户手册](docs/user-manual/zh/README.md)（首选入口）
+- [bianma URI 协议文档](docs/developers/bianma-uri-protocol.md)
+- [更新日志](CHANGELOG.md)
+- [安全政策](SECURITY.md)
+- [从 CC Switch 迁移](docs/user-manual/zh/5-faq/5.5-migration-from-cc-switch.md)（仅用于旧方案的迁移与兼容）
 
-本仓库承载 `bianma-app` 的开源核心、社区文档和兼容层说明，面向公开协作与公开接入。
-完整产品层能力、私有发布流程和内部运营细节不在本仓库主文档展开。
+## 兼容说明
+仓库仅保留上述 CC Switch 迁移指南作为兼容支持，其他文档与开发体验均统一为 bianma-app，未来不再引用 CC Switch 名称。
 
-## 快速开始
-
-1. 安装 Node.js 18+ 与 `pnpm`。
-2. 在仓库根目录执行 `pnpm install`。
-3. 执行 `pnpm dev` 启动开发模式。
-4. 在应用内添加并启用第一个供应商配置。
-
-## 协议与迁移
-
-- 主协议文档：[`bianma://` 深度链接协议](docs/user-manual/zh/5-faq/5.3-deeplink.md)。
-- 开发者接入：[bianma URI Protocol](docs/developers/bianma-uri-protocol.md)。
-- 迁移与兼容：[从 CC Switch 迁移](docs/user-manual/zh/5-faq/5.5-migration-from-cc-switch.md)。
-
-## 文档入口
-
-- [中文用户手册](docs/user-manual/zh/README.md)
-- [开发者协议文档](docs/developers/bianma-uri-protocol.md)
-
-历史 release notes 仅作归档，不作为当前主入口文档。
-
-## 贡献
-
-欢迎通过 Issue / PR 参与改进。
-
-提交前建议先执行：
-
+## 测试与质量
+提交代码前请在本地运行：
 - `pnpm typecheck`
 - `pnpm format:check`
 - `pnpm test:unit`
