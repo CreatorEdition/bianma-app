@@ -113,9 +113,9 @@ By submitting a PR, you agree to the following:
 bianma-app supports three languages. When modifying user-facing text:
 
 1. Update **all three** locale files:
-   - `src/locales/en/translation.json`
-   - `src/locales/zh/translation.json`
-   - `src/locales/ja/translation.json`
+   - `src/i18n/locales/en.json`
+   - `src/i18n/locales/zh.json`
+   - `src/i18n/locales/ja.json`
 2. Use the `t()` function from i18next for all UI text.
 3. Never hardcode user-facing strings.
 
@@ -241,9 +241,9 @@ chore(deps): update dependencies
 bianma-app 支持三种语言。修改用户可见文本时：
 
 1. **同时更新三个**语言文件：
-   - `src/locales/en/translation.json`
-   - `src/locales/zh/translation.json`
-   - `src/locales/ja/translation.json`
+   - `src/i18n/locales/en.json`
+   - `src/i18n/locales/zh.json`
+   - `src/i18n/locales/ja.json`
 2. 所有 UI 文本使用 i18next 的 `t()` 函数。
 3. 不要硬编码用户可见的字符串。
 
