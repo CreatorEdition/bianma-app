@@ -123,8 +123,9 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             src-tauri/target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('src-tauri/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-
+          # Tauri 构建缓存包含工作区绝对路径，仓库改名后不能复用旧路径的产物。
+          key: ${{ runner.os }}-cargo-v2-${{ github.repository }}-${{ hashFiles('src-tauri/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-v2-${{ github.repository }}-
 
       - name: Create frontend dist placeholder
         run: mkdir -p dist
