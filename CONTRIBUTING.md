@@ -20,17 +20,19 @@ There are many ways to contribute:
 
 ### Prerequisites
 
-- Node.js 18+ and pnpm 8+
-- Rust 1.85+ and Cargo
+- Node.js from [`.node-version`](.node-version) and pnpm from the `packageManager` field in [`package.json`](package.json). CI reads these same files; use the pinned versions for validation.
+- Rust stable and Cargo. The `ingress-contract` crate additionally has a Rust 1.85.0 CI job; this is not a verified minimum for the complete desktop app.
 - [Tauri 2.0 prerequisites](https://v2.tauri.app/start/prerequisites/)
+
+On Windows, install Visual Studio 2022 Build Tools with the C++ build tools and a Windows SDK. Rust alone does not provide `link.exe`, the C/C++ compiler or SDK libraries required by the desktop build.
 
 ### Quick Start
 
 ```bash
 # Install dependencies
-pnpm install
+pnpm install --frozen-lockfile
 
-# Start development server with hot reload
+# Start the Tauri desktop app with renderer hot reload
 pnpm dev
 ```
 
@@ -38,8 +40,10 @@ pnpm dev
 
 | Command | Description |
 |---------|-------------|
-| `pnpm dev` | Start dev server (hot reload) |
-| `pnpm build` | Production build |
+| `pnpm dev` | Start the Tauri desktop app (renderer hot reload) |
+| `pnpm dev:renderer` | Preview only the renderer in a browser; native commands are unavailable |
+| `pnpm build` | Build the Tauri desktop app; requires platform build tools |
+| `pnpm build:renderer` | Build only the renderer; does not validate the desktop runtime |
 | `pnpm typecheck` | TypeScript type checking |
 | `pnpm test:unit` | Run unit tests |
 | `pnpm format` | Format code (Prettier) |
@@ -147,17 +151,19 @@ bianma-app supports three languages. When modifying user-facing text:
 
 ### 前提条件
 
-- Node.js 18+ 和 pnpm 8+
-- Rust 1.85+ 和 Cargo
+- 使用 [`.node-version`](.node-version) 指定的 Node.js，以及 [`package.json`](package.json) 的 `packageManager` 指定的 pnpm。CI 读取相同文件，验收时使用固定版本。
+- Rust stable 和 Cargo。`ingress-contract` crate 另外有 Rust 1.85.0 CI 门禁；该结果不代表完整桌面应用的最低版本已通过验证。
 - [Tauri 2.0 开发环境](https://v2.tauri.app/start/prerequisites/)
+
+Windows 需要安装 Visual Studio 2022 Build Tools 的 C++ 工具和 Windows SDK。Rust 本身不提供桌面构建所需的 `link.exe`、C/C++ 编译器及 SDK 库。
 
 ### 快速开始
 
 ```bash
 # 安装依赖
-pnpm install
+pnpm install --frozen-lockfile
 
-# 启动开发服务器（热重载）
+# 启动 Tauri 桌面应用与渲染页面热重载
 pnpm dev
 ```
 
@@ -165,8 +171,10 @@ pnpm dev
 
 | 命令 | 说明 |
 |------|------|
-| `pnpm dev` | 启动开发服务器（热重载） |
-| `pnpm build` | 构建生产版本 |
+| `pnpm dev` | 启动 Tauri 桌面应用（渲染页面热重载） |
+| `pnpm dev:renderer` | 仅在浏览器预览渲染页面；不提供原生命令 |
+| `pnpm build` | 构建 Tauri 桌面应用；需要对应平台的构建工具 |
+| `pnpm build:renderer` | 仅构建渲染页面；不能替代桌面 runtime 验证 |
 | `pnpm typecheck` | TypeScript 类型检查 |
 | `pnpm test:unit` | 运行单元测试 |
 | `pnpm format` | 格式化代码（Prettier） |

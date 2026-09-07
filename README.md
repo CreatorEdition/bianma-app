@@ -1,6 +1,6 @@
 # bianma-app
 
-bianma-app 是 Claude Code、Codex CLI、Gemini CLI、OpenCode 与 OpenClaw 等多种 AI 编码工具的统一命令行入口，集中管理扩展、代理与配置。所有对外推广、文档与开发体验都以 bianma-app 为品牌锚点。
+Bianma 是本地 AI 编码控制面，以桌面应用集中管理 Claude Code、Codex CLI 与 Gemini CLI 的上游、代理和配置。`bianma-app` 是该桌面应用的源码仓库。
 
 ## 仓库状态
 
@@ -8,10 +8,12 @@ bianma-app 是 Claude Code、Codex CLI、Gemini CLI、OpenCode 与 OpenClaw 等�
 
 ## 快速开始
 
-1. 安装 [Node.js 18+](https://nodejs.org/) 与 `pnpm`。
-2. 进入仓库后运行 `pnpm install` 以拉取依赖。
-3. 使用 `pnpm dev` 启动本地开发服务器并热更新 UI。
-4. 若需自定义开发环境变量，可按需在仓库根目录创建 `.env` 文件并自行添加所需变量。
+1. 使用 [`.node-version`](.node-version) 指定的 Node.js 验证版本，以及 [`package.json`](package.json) 中 `packageManager` 指定的 pnpm 版本；本地与 CI 共用这两个入口。
+2. 安装 Rust stable 和 [Tauri 2 系统依赖](https://v2.tauri.app/start/prerequisites/)。Windows 需要 Visual Studio 2022 Build Tools 的 C++ 工具与 Windows SDK；仅安装 Rust 不能完成链接。
+3. 进入仓库后运行 `pnpm install --frozen-lockfile`，再用 `pnpm dev` 启动 Tauri 桌面开发模式。
+4. 仅调试渲染页面时使用 `pnpm dev:renderer`；浏览器预览不提供真实桌面命令，不能替代客户端接入和桌面生命周期验收。
+
+完整开发命令见[贡献指南](CONTRIBUTING.md)。当前公开发行工作流仅执行预检，尚不生成可下载的安装包或 updater 产物。
 
 ## 默认使用方式
 
