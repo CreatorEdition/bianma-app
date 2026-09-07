@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronDown, Eye, EyeOff, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -57,6 +57,7 @@ export function UniversalProviderFormModal({
 
   // 模型配置
   const [models, setModels] = useState<UniversalProviderModels>({});
+  const modelsBeforeDefaultEdit = useRef<UniversalProviderModels | null>(null);
 
   // 保存并同步确认弹窗
   const [syncConfirmOpen, setSyncConfirmOpen] = useState(false);
@@ -78,6 +79,7 @@ export function UniversalProviderFormModal({
 
   // 初始化表单
   useEffect(() => {
+    modelsBeforeDefaultEdit.current = null;
     if (editingProvider) {
       // 编辑模式：加载现有数据
       setName(editingProvider.name);
@@ -116,7 +118,12 @@ export function UniversalProviderFormModal({
       setClaudeEnabled(defaultPreset.defaultApps.claude);
       setCodexEnabled(defaultPreset.defaultApps.codex);
       setGeminiEnabled(defaultPreset.defaultApps.gemini);
-      setModels(JSON.parse(JSON.stringify(defaultPreset.defaultModels)));
+      // 新建上游只继承非模型选项，模型及别名由用户明确设置。
+      setModels({
+        codex: {
+          reasoningEffort: defaultPreset.defaultModels.codex?.reasoningEffort,
+        },
+      });
       setShowAdvanced(false);
     }
   }, [editingProvider, initialPreset, isOpen]);
@@ -129,15 +136,36 @@ export function UniversalProviderFormModal({
         setClaudeEnabled(preset.defaultApps.claude);
         setCodexEnabled(preset.defaultApps.codex);
         setGeminiEnabled(preset.defaultApps.gemini);
-        setModels(JSON.parse(JSON.stringify(preset.defaultModels)));
       }
     },
     [isEditMode],
   );
 
+  // 默认模型的编辑立即更新表单；保存时只读取 models，保留后续高级覆盖。
+  const updateDefaultModel = useCallback(
+    (value: string) => {
+      setDefaultModel(value);
+      modelsBeforeDefaultEdit.current ??= models;
+      if (!value.trim()) {
+        // 清空只撤销本次默认模型编辑，不能留下逐字删除过程中的截短模型。
+        setModels(modelsBeforeDefaultEdit.current);
+        return;
+      }
+
+      setModels((previous) => ({
+        ...previous,
+        claude: { ...previous.claude, model: value.trim() },
+        codex: { ...previous.codex, model: value.trim() },
+        gemini: { ...previous.gemini, model: value.trim() },
+      }));
+    },
+    [models],
+  );
+
   // 更新模型配置
   const updateModel = useCallback(
     (app: "claude" | "codex" | "gemini", field: string, value: string) => {
+      modelsBeforeDefaultEdit.current = null;
       setModels((prev) => ({
         ...prev,
         [app]: {
@@ -152,10 +180,10 @@ export function UniversalProviderFormModal({
   // 计算 Claude 配置 JSON 预览
   const claudeConfigJson = useMemo(() => {
     if (!claudeEnabled) return null;
-    const model = models.claude?.model || "claude-sonnet-4-20250514";
-    const haiku = models.claude?.haikuModel || "claude-haiku-4-20250514";
-    const sonnet = models.claude?.sonnetModel || "claude-sonnet-4-20250514";
-    const opus = models.claude?.opusModel || "claude-sonnet-4-20250514";
+    const model = models.claude?.model?.trim() || "claude-sonnet-4-20250514";
+    const haiku = models.claude?.haikuModel?.trim() || model;
+    const sonnet = models.claude?.sonnetModel?.trim() || model;
+    const opus = models.claude?.opusModel?.trim() || model;
     return {
       env: {
         ANTHROPIC_BASE_URL: baseUrl,
@@ -171,7 +199,7 @@ export function UniversalProviderFormModal({
   // 计算 Codex 配置 JSON 预览
   const codexConfigJson = useMemo(() => {
     if (!codexEnabled) return null;
-    const model = models.codex?.model || "gpt-5.4";
+    const model = models.codex?.model?.trim() || "gpt-5.4";
     const reasoningEffort = models.codex?.reasoningEffort || "high";
     // 确保 base_url 以 /v1 结尾（Codex 使用 OpenAI 兼容 API）
     const codexBaseUrl = baseUrl.endsWith("/v1")
@@ -198,7 +226,7 @@ requires_openai_auth = true`;
   // 计算 Gemini 配置 JSON 预览
   const geminiConfigJson = useMemo(() => {
     if (!geminiEnabled) return null;
-    const model = models.gemini?.model || "gemini-2.5-pro";
+    const model = models.gemini?.model?.trim() || "gemini-2.5-pro";
     return {
       env: {
         GOOGLE_GEMINI_BASE_URL: baseUrl,
@@ -208,89 +236,7 @@ requires_openai_auth = true`;
     };
   }, [geminiEnabled, baseUrl, apiKey, models.gemini]);
 
-  // 提交表单
-  const handleSubmit = useCallback(() => {
-    if (
-      !baseUrl.trim() ||
-      !apiKey.trim() ||
-      (!editingProvider && !defaultModel.trim())
-    ) {
-      return;
-    }
-
-    const nextModels = defaultModel.trim()
-      ? {
-          ...models,
-          claude: {
-            ...models.claude,
-            model: defaultModel.trim(),
-          },
-          codex: {
-            ...models.codex,
-            model: defaultModel.trim(),
-          },
-          gemini: {
-            ...models.gemini,
-            model: defaultModel.trim(),
-          },
-        }
-      : models;
-
-    const provider: UniversalProvider = editingProvider
-      ? {
-          ...editingProvider,
-          name: effectiveName,
-          baseUrl: baseUrl.trim(),
-          apiKey: apiKey.trim(),
-          websiteUrl: websiteUrl.trim() || undefined,
-          notes: notes.trim() || undefined,
-          apps: {
-            claude: claudeEnabled,
-            codex: codexEnabled,
-            gemini: geminiEnabled,
-          },
-          models: nextModels,
-        }
-      : createUniversalProviderFromPreset(
-          selectedPreset || universalProviderPresets[0],
-          crypto.randomUUID(),
-          baseUrl.trim(),
-          apiKey.trim(),
-          effectiveName,
-        );
-
-    // 如果是新建，更新应用启用状态和模型
-    if (!editingProvider) {
-      provider.apps = {
-        claude: claudeEnabled,
-        codex: codexEnabled,
-        gemini: geminiEnabled,
-      };
-      provider.models = nextModels;
-      provider.websiteUrl = websiteUrl.trim() || undefined;
-      provider.notes = notes.trim() || undefined;
-    }
-
-    onSave(provider);
-    onClose();
-  }, [
-    editingProvider,
-    effectiveName,
-    baseUrl,
-    apiKey,
-    defaultModel,
-    websiteUrl,
-    notes,
-    claudeEnabled,
-    codexEnabled,
-    geminiEnabled,
-    models,
-    selectedPreset,
-    onSave,
-    onClose,
-  ]);
-
-  // 构建 provider 对象的辅助函数
+  // 两种保存入口共用同一份配置构建逻辑。
   const buildProvider = useCallback((): UniversalProvider | null => {
     if (
       !baseUrl.trim() ||
@@ -300,23 +246,31 @@ requires_openai_auth = true`;
       return null;
     }
 
-    const nextModels = defaultModel.trim()
-      ? {
-          ...models,
-          claude: {
-            ...models.claude,
-            model: defaultModel.trim(),
-          },
-          codex: {
-            ...models.codex,
-            model: defaultModel.trim(),
-          },
-          gemini: {
-            ...models.gemini,
-            model: defaultModel.trim(),
-          },
-        }
-      : models;
+    const nextModels: UniversalProviderModels = {
+      ...models,
+      ...(models.claude && {
+        claude: {
+          ...models.claude,
+          model: models.claude.model?.trim() || undefined,
+          // Rust 使用缺省值回落到主模型，不能把空字符串持久化为显式覆盖。
+          haikuModel: models.claude.haikuModel?.trim() || undefined,
+          sonnetModel: models.claude.sonnetModel?.trim() || undefined,
+          opusModel: models.claude.opusModel?.trim() || undefined,
+        },
+      }),
+      ...(models.codex && {
+        codex: {
+          ...models.codex,
+          model: models.codex.model?.trim() || undefined,
+        },
+      }),
+      ...(models.gemini && {
+        gemini: {
+          ...models.gemini,
+          model: models.gemini.model?.trim() || undefined,
+        },
+      }),
+    };
 
     const provider: UniversalProvider = editingProvider
       ? {
@@ -368,6 +322,14 @@ requires_openai_auth = true`;
     models,
     selectedPreset,
   ]);
+
+  const handleSubmit = useCallback(() => {
+    const provider = buildProvider();
+    if (!provider) return;
+
+    onSave(provider);
+    onClose();
+  }, [buildProvider, onSave, onClose]);
 
   // 打开保存并同步确认弹窗
   const handleSaveAndSyncClick = useCallback(() => {
@@ -475,7 +437,10 @@ requires_openai_auth = true`;
             <Input
               id="defaultModel"
               value={defaultModel}
-              onChange={(event) => setDefaultModel(event.target.value)}
+              onChange={(event) => updateDefaultModel(event.target.value)}
+              onBlur={() => {
+                modelsBeforeDefaultEdit.current = null;
+              }}
               placeholder={
                 isEditMode ? "留空以保留现有高级映射" : "例如：gpt-5.4"
               }
