@@ -180,7 +180,7 @@ export function UniversalProviderFormModal({
   // 计算 Claude 配置 JSON 预览
   const claudeConfigJson = useMemo(() => {
     if (!claudeEnabled) return null;
-    const model = models.claude?.model || "claude-sonnet-4-20250514";
+    const model = models.claude?.model?.trim() || "claude-sonnet-4-20250514";
     const haiku = models.claude?.haikuModel?.trim() || model;
     const sonnet = models.claude?.sonnetModel?.trim() || model;
     const opus = models.claude?.opusModel?.trim() || model;
@@ -199,7 +199,7 @@ export function UniversalProviderFormModal({
   // 计算 Codex 配置 JSON 预览
   const codexConfigJson = useMemo(() => {
     if (!codexEnabled) return null;
-    const model = models.codex?.model || "gpt-5.4";
+    const model = models.codex?.model?.trim() || "gpt-5.4";
     const reasoningEffort = models.codex?.reasoningEffort || "high";
     // 确保 base_url 以 /v1 结尾（Codex 使用 OpenAI 兼容 API）
     const codexBaseUrl = baseUrl.endsWith("/v1")
@@ -226,7 +226,7 @@ requires_openai_auth = true`;
   // 计算 Gemini 配置 JSON 预览
   const geminiConfigJson = useMemo(() => {
     if (!geminiEnabled) return null;
-    const model = models.gemini?.model || "gemini-2.5-pro";
+    const model = models.gemini?.model?.trim() || "gemini-2.5-pro";
     return {
       env: {
         GOOGLE_GEMINI_BASE_URL: baseUrl,
