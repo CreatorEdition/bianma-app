@@ -257,7 +257,7 @@ impl Database {
             let table = row.map_err(|e| AppError::Database(e.to_string()))?;
             if is_routing_v2_table(&table) {
                 let relation = local_only_relation(&table)
-                    .ok_or_else(|| Self::unregistered_local_only_table_error())?;
+                    .ok_or_else(Self::unregistered_local_only_table_error)?;
                 routing_v2_tables.push((relation.restore_rank, table));
             }
         }
