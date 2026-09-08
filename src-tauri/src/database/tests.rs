@@ -933,7 +933,7 @@ fn current_v8_invalid_state_is_rejected_without_mutation() {
                 )
                 .expect("set invalid reader version"),
             _ => unreachable!(),
-        }
+        };
 
         let before_schema = user_schema_snapshot(&conn);
         let before_state: (i64, i64, i64, i64, i64) = conn
