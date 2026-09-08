@@ -2,7 +2,10 @@
 //!
 //! 负责数据库表结构的创建和版本迁移。
 
-use super::{lock_conn, Database, SCHEMA_VERSION};
+use super::{
+    backup_scope, is_routing_v2_table, lock_conn, routing_v2_store_gate, Database,
+    ROUTING_V2_MINIMUM_READER_VERSION, SCHEMA_VERSION,
+};
 use crate::error::AppError;
 use rusqlite::{params, Connection};
 use serde::Serialize;
@@ -11,6 +14,22 @@ use serde::Serialize;
 struct LegacySkillMigrationRow {
     directory: String,
     app_type: String,
+}
+
+/// schema 对象所属的 SQLite 命名空间。
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum SchemaOrigin {
+    Main,
+    Temp,
+}
+
+/// sqlite_master / sqlite_temp_master 中的一条 schema 对象记录。
+struct SchemaObject {
+    origin: SchemaOrigin,
+    object_type: String,
+    name: String,
+    table_name: String,
+    sql: Option<String>,
 }
 
 impl Database {
@@ -22,6 +41,13 @@ impl Database {
 
     /// 在指定连接上创建表（供迁移和测试使用）
     pub(crate) fn create_tables_on_conn(conn: &Connection) -> Result<(), AppError> {
+        // 写入口预检：本函数也被备份/导入/离线/测试路径直接调用，必须在任何
+        // DDL 前拒绝过新版本与被占用的 routing v2 命名空间，避免静默收养外来结构。
+        // 便携备份恢复由后续独立切片提供显式 staging/projection API（恢复为受支持
+        // 的便携 legacy schema 后再进入本流程），不得绕过此检查。
+        let version = Self::ensure_schema_version_supported(conn)?;
+        Self::ensure_routing_v2_namespace_safe(conn, version)?;
+
         // 1. Providers 表
         conn.execute(
             "CREATE TABLE IF NOT EXISTS providers (
@@ -348,18 +374,14 @@ impl Database {
 
     /// 在指定连接上应用 Schema 迁移
     pub(crate) fn apply_schema_migrations_on_conn(conn: &Connection) -> Result<(), AppError> {
+        // 预检必须先于 savepoint：版本与 routing v2 命名空间检查不通过时直接返回，
+        // 不打开事务也不执行任何写入。当前 v8 且状态异常的数据库在此 fail closed，
+        // 绝不进入迁移流程静默修复或重播种。
+        let mut version = Self::ensure_schema_version_supported(conn)?;
+        Self::ensure_routing_v2_namespace_safe(conn, version)?;
+
         conn.execute("SAVEPOINT schema_migration;", [])
             .map_err(|e| AppError::Database(format!("开启迁移 savepoint 失败: {e}")))?;
-
-        let mut version = Self::get_user_version(conn)?;
-
-        if version > SCHEMA_VERSION {
-            conn.execute("ROLLBACK TO schema_migration;", []).ok();
-            conn.execute("RELEASE schema_migration;", []).ok();
-            return Err(AppError::Database(format!(
-                "数据库版本过新（{version}），当前应用仅支持 {SCHEMA_VERSION}，请升级应用后再尝试。"
-            )));
-        }
 
         let result = (|| {
             while version < SCHEMA_VERSION {
@@ -401,6 +423,11 @@ impl Database {
                         Self::migrate_v6_to_v7(conn)?;
                         Self::set_user_version(conn, 7)?;
                     }
+                    7 => {
+                        log::info!("迁移数据库从 v7 到 v8（routing v2 本机目录）");
+                        Self::migrate_v7_to_v8(conn)?;
+                        Self::set_user_version(conn, 8)?;
+                    }
                     _ => {
                         return Err(AppError::Database(format!(
                             "未知的数据库版本 {version}，无法迁移到 {SCHEMA_VERSION}"
@@ -409,6 +436,10 @@ impl Database {
                 }
                 version = Self::get_user_version(conn)?;
             }
+            // 迁移完成后在同一 savepoint 内复核刚创建的 v8 目录：此时 catalog
+            // 是本迁移自己创建的合法现状，按 v8 规则校验六张注册表、封闭命名空间
+            // 与 Store Gate；任何失败都会触发整体回滚。
+            Self::ensure_routing_v2_namespace_safe(conn, SCHEMA_VERSION)?;
             Ok(())
         })();
 
@@ -1060,6 +1091,156 @@ impl Database {
         Ok(())
     }
 
+    /// v7 -> v8 迁移：添加 routing v2 的无 Secret 本机目录。
+    ///
+    /// 此迁移只创建规范化元数据表与单例状态，绝不读取旧 Provider JSON、
+    /// 凭据或执行配置；旧数据的受控导入会在独立切片中实现。
+    ///
+    /// 注意：routing v2 目录只在本迁移事务内创建。所有写入口（含直接调用
+    /// `create_tables_on_conn` / `apply_schema_migrations_on_conn` 的备份、导入
+    /// 与测试路径）都已在任何 DDL 前完成版本与命名空间 fail-closed 预检，因此
+    /// 这里不会遇到外来 routing v2 对象，迁移后也会按 v8 规则复核新建状态。
+    fn migrate_v7_to_v8(conn: &Connection) -> Result<(), AppError> {
+        Self::create_routing_v2_catalog_tables(conn)?;
+        log::info!("v7 -> v8 迁移完成：已添加 routing v2 本机目录");
+        Ok(())
+    }
+
+    /// 创建 routing v2 的无 Secret 本机目录。
+    ///
+    /// 该目录仅承载尚未激活的 Site、Endpoint、Account 与 Deployment 元数据。
+    /// 它不包含 Credential、Binding、Grant、Quota 或任何可执行配置。
+    fn create_routing_v2_catalog_tables(conn: &Connection) -> Result<(), AppError> {
+        let state_table_sql = format!(
+            "CREATE TABLE IF NOT EXISTS routing_v2_store_state (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                migration_epoch INTEGER NOT NULL CHECK (migration_epoch >= 1),
+                minimum_reader_version INTEGER NOT NULL CHECK (minimum_reader_version >= {ROUTING_V2_MINIMUM_READER_VERSION}),
+                rollback_generation INTEGER NOT NULL CHECK (rollback_generation >= 0),
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )"
+        );
+        conn.execute(&state_table_sql, [])
+            .map_err(|e| AppError::Database(format!("创建 routing_v2_store_state 表失败: {e}")))?;
+
+        conn.execute(
+            "INSERT OR IGNORE INTO routing_v2_store_state (
+                id, migration_epoch, minimum_reader_version, rollback_generation
+            ) VALUES (1, 1, ?1, 0)",
+            [ROUTING_V2_MINIMUM_READER_VERSION],
+        )
+        .map_err(|e| AppError::Database(format!("初始化 routing_v2_store_state 失败: {e}")))?;
+
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS routing_v2_migration_journal (
+                journal_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                migration_epoch INTEGER NOT NULL CHECK (migration_epoch >= 1),
+                source_app_type TEXT NOT NULL,
+                source_provider_id TEXT NOT NULL,
+                source_endpoint_id INTEGER NOT NULL DEFAULT -1,
+                source_index INTEGER NOT NULL DEFAULT -1,
+                target_kind TEXT NOT NULL,
+                target_id TEXT,
+                state TEXT NOT NULL,
+                failure_code TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE (
+                    migration_epoch,
+                    source_app_type,
+                    source_provider_id,
+                    source_endpoint_id,
+                    source_index,
+                    target_kind
+                )
+            )",
+            [],
+        )
+        .map_err(|e| {
+            AppError::Database(format!("创建 routing_v2_migration_journal 表失败: {e}"))
+        })?;
+
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS routing_v2_sites (
+                site_id TEXT PRIMARY KEY,
+                display_name TEXT NOT NULL,
+                trust_tier TEXT NOT NULL DEFAULT 'unclassified',
+                lifecycle TEXT NOT NULL DEFAULT 'draft',
+                revision INTEGER NOT NULL DEFAULT 1 CHECK (revision >= 1),
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )",
+            [],
+        )
+        .map_err(|e| AppError::Database(format!("创建 routing_v2_sites 表失败: {e}")))?;
+
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS routing_v2_endpoints (
+                endpoint_id TEXT PRIMARY KEY,
+                site_id TEXT NOT NULL,
+                display_base_url TEXT NOT NULL,
+                canonical_origin TEXT NOT NULL,
+                base_path TEXT NOT NULL,
+                origin_revision INTEGER NOT NULL DEFAULT 1 CHECK (origin_revision >= 1),
+                protocol_family TEXT NOT NULL,
+                lifecycle TEXT NOT NULL DEFAULT 'draft',
+                verification_state TEXT NOT NULL DEFAULT 'unverified',
+                revision INTEGER NOT NULL DEFAULT 1 CHECK (revision >= 1),
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (site_id) REFERENCES routing_v2_sites(site_id) ON DELETE RESTRICT,
+                UNIQUE (endpoint_id, site_id),
+                UNIQUE (site_id, canonical_origin, base_path, protocol_family)
+            )",
+            [],
+        )
+        .map_err(|e| AppError::Database(format!("创建 routing_v2_endpoints 表失败: {e}")))?;
+
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS routing_v2_accounts (
+                account_id TEXT PRIMARY KEY,
+                site_id TEXT NOT NULL,
+                local_label TEXT NOT NULL,
+                identity_kind TEXT NOT NULL DEFAULT 'unconfirmed',
+                quota_topology TEXT NOT NULL DEFAULT 'unknown',
+                lifecycle TEXT NOT NULL DEFAULT 'draft',
+                revision INTEGER NOT NULL DEFAULT 1 CHECK (revision >= 1),
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (site_id) REFERENCES routing_v2_sites(site_id) ON DELETE RESTRICT
+            )",
+            [],
+        )
+        .map_err(|e| AppError::Database(format!("创建 routing_v2_accounts 表失败: {e}")))?;
+
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS routing_v2_model_deployments (
+                deployment_id TEXT PRIMARY KEY,
+                site_id TEXT NOT NULL,
+                endpoint_id TEXT NOT NULL,
+                upstream_model_id TEXT NOT NULL,
+                adapter_contract_revision INTEGER NOT NULL CHECK (adapter_contract_revision >= 1),
+                capability_state TEXT NOT NULL DEFAULT 'unconfirmed',
+                lifecycle TEXT NOT NULL DEFAULT 'draft',
+                revision INTEGER NOT NULL DEFAULT 1 CHECK (revision >= 1),
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (site_id) REFERENCES routing_v2_sites(site_id) ON DELETE RESTRICT,
+                FOREIGN KEY (endpoint_id, site_id)
+                    REFERENCES routing_v2_endpoints(endpoint_id, site_id)
+                    ON DELETE RESTRICT,
+                UNIQUE (endpoint_id, upstream_model_id, adapter_contract_revision)
+            )",
+            [],
+        )
+        .map_err(|e| {
+            AppError::Database(format!("创建 routing_v2_model_deployments 表失败: {e}"))
+        })?;
+
+        Ok(())
+    }
+
     fn create_provider_latency_results_table(conn: &Connection) -> Result<(), AppError> {
         conn.execute(
             "CREATE TABLE IF NOT EXISTS provider_latency_results (
@@ -1477,7 +1658,7 @@ impl Database {
         Self::ensure_model_pricing_seeded_on_conn(&conn)
     }
 
-    fn ensure_model_pricing_seeded_on_conn(conn: &Connection) -> Result<(), AppError> {
+    pub(crate) fn ensure_model_pricing_seeded_on_conn(conn: &Connection) -> Result<(), AppError> {
         // 每次启动都执行 INSERT OR IGNORE，增量追加新模型，已有数据不覆盖
         Self::seed_model_pricing(conn)
     }
@@ -1486,7 +1667,166 @@ impl Database {
 
     pub(crate) fn get_user_version(conn: &Connection) -> Result<i32, AppError> {
         conn.query_row("PRAGMA user_version;", [], |row| row.get(0))
-            .map_err(|e| AppError::Database(format!("读取 user_version 失败: {e}")))
+            .map_err(|_| {
+                AppError::Database("读取数据库版本失败，已拒绝继续以保护数据。".to_string())
+            })
+    }
+
+    /// 在任何可能写入数据库的启动步骤前确认当前 reader 支持该 schema。
+    ///
+    /// 返回值只供启动与迁移流程继续判断旧版本；未来版本一律返回固定错误，
+    /// 不回显磁盘数据库的版本或底层 SQLite 信息。
+    pub(crate) fn ensure_schema_version_supported(conn: &Connection) -> Result<i32, AppError> {
+        let version = Self::get_user_version(conn)?;
+        if version > SCHEMA_VERSION {
+            return Err(Self::future_schema_version_error());
+        }
+        Ok(version)
+    }
+
+    fn future_schema_version_error() -> AppError {
+        AppError::Database("数据库版本过新，请升级应用后再尝试。".to_string())
+    }
+
+    /// 在任何 create/seed/backup/VACUUM 之前校验 routing v2 命名空间的安全状态。
+    ///
+    /// - v0..7 数据库：catalog 尚未由本应用创建，任何已存在的 routing v2 对象
+    ///   （表、视图、触发器、索引，或以 routing v2 表为目标的触发器/索引，含
+    ///   temp 命名空间遮蔽）都视为外来且不兼容，直接以固定错误拒绝，避免
+    ///   `CREATE TABLE IF NOT EXISTS` 或 `INSERT OR IGNORE` 静默收养未知结构。
+    /// - v8 数据库：六张注册表必须全部以 TABLE 类型存在（不接受同名替代视图），
+    ///   除注册表与 SQLite 隐式 autoindex 外不允许任何 routing v2 命名对象，且
+    ///   Store State 必须通过访问栅栏；缺失、未知或异常一律以固定错误拒绝，
+    ///   绝不由启动流程静默重建或重播种。
+    ///
+    /// 名称比较遵循 SQLite 标识符的 ASCII 大小写无关规则，且只使用精确名称
+    /// 匹配，不使用会把下划线当作通配符的 LIKE 前缀查询。schema 查询失败一律
+    /// fail closed，错误中不回显磁盘上的对象名或底层 SQLite 信息。
+    pub(crate) fn ensure_routing_v2_namespace_safe(
+        conn: &Connection,
+        version: i32,
+    ) -> Result<(), AppError> {
+        let objects = Self::list_schema_objects(conn)?;
+        let relations = backup_scope::local_only_relations();
+        let references_routing_v2 = |object: &SchemaObject| {
+            is_routing_v2_table(&object.name) || is_routing_v2_table(&object.table_name)
+        };
+
+        if version < SCHEMA_VERSION {
+            if objects.iter().any(references_routing_v2) {
+                return Err(Self::incompatible_routing_v2_namespace_error());
+            }
+            return Ok(());
+        }
+
+        // 任何引用 routing v2 名称的 TEMP 对象都视为命名空间遮蔽，直接拒绝。
+        if objects
+            .iter()
+            .any(|object| object.origin == SchemaOrigin::Temp && references_routing_v2(object))
+        {
+            return Err(Self::incompatible_routing_v2_namespace_error());
+        }
+
+        let missing_relation = relations.iter().any(|relation| {
+            !objects.iter().any(|object| {
+                object.origin == SchemaOrigin::Main
+                    && object.object_type.eq_ignore_ascii_case("table")
+                    && object.name.eq_ignore_ascii_case(relation.table)
+            })
+        });
+        if missing_relation {
+            return Err(Self::incompatible_routing_v2_namespace_error());
+        }
+
+        let unknown_object = objects.iter().any(|object| {
+            object.origin == SchemaOrigin::Main
+                && references_routing_v2(object)
+                && !relations.iter().any(|relation| {
+                    object.object_type.eq_ignore_ascii_case("table")
+                        && object.name.eq_ignore_ascii_case(relation.table)
+                })
+                && !Self::is_genuine_implicit_index(object, relations)
+        });
+        if unknown_object {
+            return Err(Self::incompatible_routing_v2_namespace_error());
+        }
+
+        routing_v2_store_gate::acquire(conn)
+            .map_err(|_| Self::incompatible_routing_v2_namespace_error())?;
+        Ok(())
+    }
+
+    fn incompatible_routing_v2_namespace_error() -> AppError {
+        AppError::Database("检测到不兼容的 routing v2 本地目录，已拒绝启动以保护数据。".to_string())
+    }
+
+    /// 仅放行 SQLite 为注册表约束生成的隐式 autoindex：type 为 index、SQL 为 NULL、
+    /// tbl_name 与名称中的注册表一致，且名称后缀为正数序号。
+    fn is_genuine_implicit_index(
+        object: &SchemaObject,
+        relations: &[backup_scope::LocalOnlyRelation],
+    ) -> bool {
+        if !object.object_type.eq_ignore_ascii_case("index") || object.sql.is_some() {
+            return false;
+        }
+        let Some(relation) = relations
+            .iter()
+            .find(|relation| relation.table.eq_ignore_ascii_case(&object.table_name))
+        else {
+            return false;
+        };
+        let prefix = format!("sqlite_autoindex_{}_", relation.table);
+        if object.name.len() <= prefix.len()
+            || !object
+                .name
+                .get(..prefix.len())
+                .is_some_and(|head| head.eq_ignore_ascii_case(&prefix))
+        {
+            return false;
+        }
+        object.name[prefix.len()..]
+            .parse::<u64>()
+            .is_ok_and(|suffix| suffix >= 1)
+    }
+
+    /// 读取 main 与 temp 命名空间的全部 schema 对象；查询或解析失败一律 fail
+    /// closed，错误中不回显对象名或底层 SQLite 信息。
+    fn list_schema_objects(conn: &Connection) -> Result<Vec<SchemaObject>, AppError> {
+        let mut stmt = conn
+            .prepare(
+                "SELECT type, name, tbl_name, sql, 0 FROM main.sqlite_master
+                 UNION ALL
+                 SELECT type, name, tbl_name, sql, 1 FROM temp.sqlite_temp_master",
+            )
+            .map_err(|_| Self::schema_objects_query_error())?;
+        let mut rows = stmt
+            .query([])
+            .map_err(|_| Self::schema_objects_query_error())?;
+        let mut objects = Vec::new();
+        while let Some(row) = rows
+            .next()
+            .map_err(|_| Self::schema_objects_query_error())?
+        {
+            let origin = match row
+                .get::<_, i64>(4)
+                .map_err(|_| Self::schema_objects_query_error())?
+            {
+                0 => SchemaOrigin::Main,
+                _ => SchemaOrigin::Temp,
+            };
+            objects.push(SchemaObject {
+                origin,
+                object_type: row.get(0).map_err(|_| Self::schema_objects_query_error())?,
+                name: row.get(1).map_err(|_| Self::schema_objects_query_error())?,
+                table_name: row.get(2).map_err(|_| Self::schema_objects_query_error())?,
+                sql: row.get(3).map_err(|_| Self::schema_objects_query_error())?,
+            });
+        }
+        Ok(objects)
+    }
+
+    fn schema_objects_query_error() -> AppError {
+        AppError::Database("读取数据库结构失败，已拒绝继续以保护数据。".to_string())
     }
 
     pub(crate) fn set_user_version(conn: &Connection, version: i32) -> Result<(), AppError> {
