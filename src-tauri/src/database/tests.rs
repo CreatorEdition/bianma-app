@@ -6,10 +6,104 @@ use super::*;
 use crate::app_config::MultiAppConfig;
 use crate::provider::{Provider, ProviderManager};
 use indexmap::IndexMap;
-use rusqlite::{params, Connection};
+use rusqlite::{
+    hooks::{AuthAction, AuthContext, Authorization},
+    params, Connection,
+};
 use serde_json::json;
+use serial_test::serial;
 use std::collections::HashMap;
-use tempfile::NamedTempFile;
+use std::ffi::OsString;
+use std::path::Path;
+use tempfile::{NamedTempFile, TempDir};
+
+fn seed_minimal_settings(conn: &Connection) {
+    conn.execute(
+        "CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT)",
+        [],
+    )
+    .expect("create minimal settings");
+    conn.execute(
+        "INSERT INTO settings (key, value) VALUES ('sentinel', 'preserved')",
+        [],
+    )
+    .expect("insert settings sentinel");
+}
+
+fn schema_object_count(conn: &Connection, name: &str) -> i64 {
+    conn.query_row(
+        "SELECT COUNT(*) FROM sqlite_master WHERE lower(name) = lower(?1)",
+        [name],
+        |row| row.get(0),
+    )
+    .expect("count schema object")
+}
+
+fn user_schema_snapshot(conn: &Connection) -> Vec<(String, String, Option<String>, i64)> {
+    let objects: Vec<(String, String, Option<String>)> = {
+        let mut stmt = conn
+            .prepare(
+                "SELECT name, type, sql
+                 FROM sqlite_master
+                 WHERE type IN ('table', 'view') AND name NOT LIKE 'sqlite_%'
+                 ORDER BY name",
+            )
+            .expect("prepare schema snapshot");
+        let mut rows = stmt.query([]).expect("query schema snapshot");
+        let mut objects = Vec::new();
+        while let Some(row) = rows.next().expect("read schema snapshot") {
+            objects.push((
+                row.get(0).expect("schema name"),
+                row.get(1).expect("schema type"),
+                row.get(2).expect("schema sql"),
+            ));
+        }
+        objects
+    };
+
+    objects
+        .into_iter()
+        .map(|(name, kind, sql)| {
+            let quoted_name = name.replace('"', "\"\"");
+            let count: i64 = conn
+                .query_row(
+                    &format!("SELECT COUNT(*) FROM \"{quoted_name}\""),
+                    [],
+                    |row| row.get(0),
+                )
+                .expect("count schema object rows");
+            (name, kind, sql, count)
+        })
+        .collect()
+}
+
+struct TestHomeGuard {
+    previous: Option<OsString>,
+    temp: TempDir,
+}
+
+impl TestHomeGuard {
+    fn new() -> Self {
+        let temp = TempDir::new().expect("create test home");
+        let previous = std::env::var_os("CC_SWITCH_TEST_HOME");
+        std::env::set_var("CC_SWITCH_TEST_HOME", temp.path());
+        Self { previous, temp }
+    }
+
+    fn path(&self) -> &Path {
+        self.temp.path()
+    }
+}
+
+impl Drop for TestHomeGuard {
+    fn drop(&mut self) {
+        if let Some(previous) = self.previous.take() {
+            std::env::set_var("CC_SWITCH_TEST_HOME", previous);
+        } else {
+            std::env::remove_var("CC_SWITCH_TEST_HOME");
+        }
+    }
+}
 
 const LEGACY_SCHEMA_SQL: &str = r#"
     CREATE TABLE providers (
@@ -689,4 +783,428 @@ fn ensure_incremental_auto_vacuum_rebuilds_existing_file_db() {
         2,
         "file db should persist INCREMENTAL auto_vacuum after VACUUM rebuild"
     );
+}
+
+#[test]
+fn fresh_memory_database_has_v8_catalog_and_state() {
+    let db = Database::memory().expect("create memory db");
+    let conn = db.conn.lock().expect("lock conn");
+
+    for table in [
+        "routing_v2_store_state",
+        "routing_v2_migration_journal",
+        "routing_v2_sites",
+        "routing_v2_endpoints",
+        "routing_v2_accounts",
+        "routing_v2_model_deployments",
+    ] {
+        assert_eq!(schema_object_count(&conn, table), 1, "{table} should exist");
+    }
+
+    let state: (i64, i64, i64, i64) = conn
+        .query_row(
+            "SELECT id, migration_epoch, minimum_reader_version, rollback_generation
+             FROM routing_v2_store_state",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+        )
+        .expect("read routing v2 state");
+    assert_eq!(state, (1, 1, 8, 0));
+    assert_eq!(
+        Database::get_user_version(&conn).expect("read user version"),
+        8
+    );
+}
+
+#[test]
+fn v7_migration_is_additive_and_idempotent() {
+    let conn = Connection::open_in_memory().expect("open memory db");
+    seed_minimal_settings(&conn);
+    Database::set_user_version(&conn, 7).expect("set user_version=7");
+
+    Database::apply_schema_migrations_on_conn(&conn).expect("apply first migration");
+    Database::apply_schema_migrations_on_conn(&conn).expect("apply second migration");
+
+    let sentinel: String = conn
+        .query_row(
+            "SELECT value FROM settings WHERE key = 'sentinel'",
+            [],
+            |row| row.get(0),
+        )
+        .expect("read sentinel");
+    assert_eq!(sentinel, "preserved");
+    let state_rows: i64 = conn
+        .query_row("SELECT COUNT(*) FROM routing_v2_store_state", [], |row| {
+            row.get(0)
+        })
+        .expect("count state rows");
+    assert_eq!(state_rows, 1);
+    assert_eq!(
+        Database::get_user_version(&conn).expect("read user version"),
+        8
+    );
+}
+
+#[test]
+fn older_routing_v2_namespace_is_rejected_without_writes() {
+    for (version, object_name, object_sql) in [
+        (
+            7,
+            "routing_v2_sites",
+            "CREATE TABLE routing_v2_sites (site_id TEXT)",
+        ),
+        (
+            7,
+            "routing_v2_unregistered",
+            "CREATE TABLE routing_v2_unregistered (id INTEGER)",
+        ),
+        (
+            7,
+            "RoUtInG_v2_view",
+            "CREATE VIEW RoUtInG_v2_view AS SELECT 1 AS value",
+        ),
+        (
+            0,
+            "routing_v2_unregistered",
+            "CREATE TABLE routing_v2_unregistered (id INTEGER)",
+        ),
+    ] {
+        let conn = Connection::open_in_memory().expect("open memory db");
+        seed_minimal_settings(&conn);
+        conn.execute_batch(object_sql)
+            .expect("create namespace fixture");
+        Database::set_user_version(&conn, version).expect("set fixture version");
+
+        assert!(
+            Database::apply_schema_migrations_on_conn(&conn).is_err(),
+            "migration should reject {object_name} at version {version}"
+        );
+        assert!(
+            Database::create_tables_on_conn(&conn).is_err(),
+            "table creation should reject {object_name} at version {version}"
+        );
+
+        assert_eq!(
+            Database::get_user_version(&conn).expect("read unchanged version"),
+            version
+        );
+        let sentinel: String = conn
+            .query_row(
+                "SELECT value FROM settings WHERE key = 'sentinel'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("read unchanged sentinel");
+        assert_eq!(sentinel, "preserved");
+        assert_eq!(schema_object_count(&conn, object_name), 1);
+        assert_eq!(schema_object_count(&conn, "routing_v2_store_state"), 0);
+        assert_eq!(
+            schema_object_count(&conn, "routing_v2_migration_journal"),
+            0
+        );
+        assert_eq!(schema_object_count(&conn, "providers"), 0);
+    }
+}
+
+#[test]
+fn current_v8_invalid_state_is_rejected_without_mutation() {
+    for mutation in [
+        "remove_state",
+        "drop_journal",
+        "unknown_table",
+        "reader_version",
+    ] {
+        let db = Database::memory().expect("create memory db");
+        let conn = db.conn.lock().expect("lock conn");
+        match mutation {
+            "remove_state" => conn
+                .execute("DELETE FROM routing_v2_store_state", [])
+                .expect("remove state row"),
+            "drop_journal" => conn
+                .execute("DROP TABLE routing_v2_migration_journal", [])
+                .expect("drop journal"),
+            "unknown_table" => conn
+                .execute("CREATE TABLE routing_v2_unregistered (id INTEGER)", [])
+                .expect("create unknown table"),
+            "reader_version" => conn
+                .execute(
+                    "UPDATE routing_v2_store_state SET minimum_reader_version = 9",
+                    [],
+                )
+                .expect("set invalid reader version"),
+            _ => unreachable!(),
+        };
+
+        let before_schema = user_schema_snapshot(&conn);
+        let before_state: (i64, i64, i64, i64, i64) = conn
+            .query_row(
+                "SELECT COUNT(*), COALESCE(MIN(id), -1), COALESCE(MIN(migration_epoch), -1),
+                        COALESCE(MIN(minimum_reader_version), -1), COALESCE(MIN(rollback_generation), -1)
+                 FROM routing_v2_store_state",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)),
+            )
+            .expect("read state before validation");
+        let before_version = Database::get_user_version(&conn).expect("read version");
+        assert!(Database::create_tables_on_conn(&conn).is_err());
+        assert!(Database::apply_schema_migrations_on_conn(&conn).is_err());
+        assert_eq!(user_schema_snapshot(&conn), before_schema);
+        assert_eq!(
+            Database::get_user_version(&conn).expect("read unchanged version"),
+            before_version
+        );
+        let after_state: (i64, i64, i64, i64, i64) = conn
+            .query_row(
+                "SELECT COUNT(*), COALESCE(MIN(id), -1), COALESCE(MIN(migration_epoch), -1),
+                        COALESCE(MIN(minimum_reader_version), -1), COALESCE(MIN(rollback_generation), -1)
+                 FROM routing_v2_store_state",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)),
+            )
+            .expect("read state after validation");
+        assert_eq!(after_state, before_state);
+    }
+}
+
+#[test]
+fn v7_migration_rolls_back_mid_ddl_authorizer_failure() {
+    let conn = Connection::open_in_memory().expect("open memory db");
+    seed_minimal_settings(&conn);
+    Database::set_user_version(&conn, 7).expect("set user_version=7");
+    let before_schema = user_schema_snapshot(&conn);
+
+    let callback = |ctx: AuthContext<'_>| match ctx.action {
+        AuthAction::CreateTable {
+            table_name: "routing_v2_endpoints",
+        } => Authorization::Deny,
+        _ => Authorization::Allow,
+    };
+    conn.authorizer(Some(callback));
+    assert!(
+        Database::apply_schema_migrations_on_conn(&conn).is_err(),
+        "migration should fail during routing_v2_endpoints creation"
+    );
+    conn.authorizer(None::<fn(AuthContext<'_>) -> Authorization>);
+
+    assert_eq!(Database::get_user_version(&conn).expect("read version"), 7);
+    assert_eq!(user_schema_snapshot(&conn), before_schema);
+    let v2_table_count: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM sqlite_master
+             WHERE type = 'table' AND name LIKE 'routing_v2_%'",
+            [],
+            |row| row.get(0),
+        )
+        .expect("count rolled back v2 tables");
+    assert_eq!(v2_table_count, 0);
+    let sentinel: String = conn
+        .query_row(
+            "SELECT value FROM settings WHERE key = 'sentinel'",
+            [],
+            |row| row.get(0),
+        )
+        .expect("read unchanged sentinel");
+    assert_eq!(sentinel, "preserved");
+
+    Database::apply_schema_migrations_on_conn(&conn).expect("retry migration");
+    assert_eq!(
+        Database::get_user_version(&conn).expect("read migrated version"),
+        8
+    );
+}
+
+#[test]
+fn temp_catalog_objects_cannot_substitute_or_shadow_v8_catalog() {
+    let read_state = |conn: &Connection| -> (i64, i64, i64, i64) {
+        conn.query_row(
+            "SELECT id, migration_epoch, minimum_reader_version, rollback_generation
+             FROM main.routing_v2_store_state",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+        )
+        .expect("read main store state")
+    };
+
+    let db = Database::memory().expect("create memory db");
+    let conn = db.conn.lock().expect("lock conn");
+    conn.execute("DROP TABLE main.routing_v2_migration_journal", [])
+        .expect("drop main journal");
+    conn.execute(
+        "CREATE TEMP TABLE routing_v2_migration_journal (journal_id INTEGER)",
+        [],
+    )
+    .expect("create temp journal");
+    let before_state = read_state(&conn);
+    assert!(Database::create_tables_on_conn(&conn).is_err());
+    assert!(Database::apply_schema_migrations_on_conn(&conn).is_err());
+    assert_eq!(Database::get_user_version(&conn).expect("read version"), 8);
+    assert_eq!(read_state(&conn), before_state);
+    assert_eq!(
+        conn.query_row(
+            "SELECT COUNT(*) FROM temp.sqlite_master
+             WHERE type = 'table' AND name = 'routing_v2_migration_journal'",
+            [],
+            |row| row.get::<_, i64>(0),
+        )
+        .expect("count temp journal"),
+        1
+    );
+
+    let db = Database::memory().expect("create second memory db");
+    let conn = db.conn.lock().expect("lock second conn");
+    conn.execute(
+        "CREATE TEMP TABLE routing_v2_store_state (
+             id INTEGER, migration_epoch INTEGER, minimum_reader_version INTEGER,
+             rollback_generation INTEGER
+         )",
+        [],
+    )
+    .expect("create temp store state");
+    conn.execute(
+        "INSERT INTO temp.routing_v2_store_state
+         VALUES (1, 1, 8, 0)",
+        [],
+    )
+    .expect("insert temp store state");
+    let before_state = read_state(&conn);
+    assert!(Database::create_tables_on_conn(&conn).is_err());
+    assert!(Database::apply_schema_migrations_on_conn(&conn).is_err());
+    assert_eq!(Database::get_user_version(&conn).expect("read version"), 8);
+    assert_eq!(read_state(&conn), before_state);
+    assert_eq!(
+        conn.query_row(
+            "SELECT COUNT(*) FROM temp.routing_v2_store_state",
+            [],
+            |row| row.get::<_, i64>(0),
+        )
+        .expect("count temp store state"),
+        1
+    );
+}
+
+#[test]
+fn unknown_namespaced_view_and_trigger_are_rejected_without_catalog_loss() {
+    for (name, object_sql, expected_type) in [
+        (
+            "routing_v2_unregistered",
+            "CREATE VIEW routing_v2_unregistered AS SELECT 1",
+            "view",
+        ),
+        (
+            "routing_v2_sites",
+            "CREATE TRIGGER routing_v2_sites AFTER INSERT ON settings BEGIN SELECT 1; END",
+            "trigger",
+        ),
+    ] {
+        let db = Database::memory().expect("create memory db");
+        let conn = db.conn.lock().expect("lock conn");
+        conn.execute_batch(object_sql)
+            .expect("create catalog fixture");
+
+        assert!(Database::create_tables_on_conn(&conn).is_err());
+        assert!(Database::apply_schema_migrations_on_conn(&conn).is_err());
+        assert_eq!(Database::get_user_version(&conn).expect("read version"), 8);
+
+        let (actual_type, actual_sql): (String, String) = conn
+            .query_row(
+                "SELECT type, sql FROM sqlite_master WHERE name = ?1 AND type = ?2",
+                params![name, expected_type],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .expect("read preserved catalog entry");
+        assert_eq!(actual_type, expected_type);
+        assert!(actual_sql.contains(name));
+    }
+}
+
+#[test]
+fn routing_v2_foreign_keys_and_endpoint_uniqueness_are_enforced() {
+    let db = Database::memory().expect("create memory db");
+    let conn = db.conn.lock().expect("lock conn");
+
+    conn.execute_batch(
+        r#"
+        INSERT INTO routing_v2_sites (site_id, display_name)
+        VALUES ('site-a', 'Site A'), ('site-b', 'Site B');
+        INSERT INTO routing_v2_endpoints (
+            endpoint_id, site_id, display_base_url, canonical_origin,
+            base_path, protocol_family
+        ) VALUES (
+            'endpoint-a', 'site-a', 'https://a.example/v1',
+            'https://a.example', '/v1', 'openai'
+        );
+        "#,
+    )
+    .expect("insert valid routing v2 records");
+
+    let cross_site = conn.execute(
+        "INSERT INTO routing_v2_model_deployments (
+            deployment_id, site_id, endpoint_id, upstream_model_id,
+            adapter_contract_revision
+        ) VALUES ('deployment-cross-site', 'site-b', 'endpoint-a', 'model-a', 1)",
+        [],
+    );
+    assert!(cross_site.is_err(), "cross-site deployment should fail");
+
+    let duplicate_endpoint = conn.execute(
+        "INSERT INTO routing_v2_endpoints (
+            endpoint_id, site_id, display_base_url, canonical_origin,
+            base_path, protocol_family
+        ) VALUES (
+            'endpoint-b', 'site-a', 'https://a.example/v1',
+            'https://a.example', '/v1', 'openai'
+        )",
+        [],
+    );
+    assert!(
+        duplicate_endpoint.is_err(),
+        "duplicate endpoint should fail"
+    );
+
+    let valid_endpoint_count: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM routing_v2_endpoints
+             WHERE endpoint_id = 'endpoint-a' AND site_id = 'site-a'",
+            [],
+            |row| row.get(0),
+        )
+        .expect("count valid endpoint");
+    assert_eq!(valid_endpoint_count, 1);
+}
+
+#[test]
+#[serial]
+fn future_version_file_init_does_not_modify_database_or_create_backup() {
+    let home = TestHomeGuard::new();
+    let config_dir = home.path().join(".cc-switch");
+    std::fs::create_dir_all(&config_dir).expect("create config directory");
+    let db_path = config_dir.join("cc-switch.db");
+    {
+        let conn = Connection::open(&db_path).expect("create future database");
+        Database::set_user_version(&conn, 9).expect("set future version");
+    }
+    let before = std::fs::read(&db_path).expect("read future database");
+
+    assert!(crate::app_store::get_app_config_dir_override().is_none());
+    assert_eq!(crate::config::get_app_config_dir(), config_dir);
+    assert!(
+        Database::init().is_err(),
+        "future database should be rejected"
+    );
+
+    assert_eq!(
+        std::fs::read(&db_path).expect("read unchanged future database"),
+        before
+    );
+    assert!(!config_dir.join("backups").exists());
+    let conn = Connection::open(&db_path).expect("reopen future database");
+    let user_tables: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM sqlite_master
+             WHERE type IN ('table', 'view') AND name NOT LIKE 'sqlite_%'",
+            [],
+            |row| row.get(0),
+        )
+        .expect("count user tables");
+    assert_eq!(user_tables, 0);
 }

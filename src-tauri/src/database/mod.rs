@@ -24,8 +24,10 @@
 //! ```
 
 pub(crate) mod backup;
+mod backup_scope;
 mod dao;
 mod migration;
+mod routing_v2_store_gate;
 mod schema;
 
 #[cfg(test)]
@@ -44,7 +46,27 @@ use std::sync::Mutex;
 
 /// 当前 Schema 版本号
 /// 每次修改表结构时递增，并在 schema.rs 中添加相应的迁移逻辑
-pub(crate) const SCHEMA_VERSION: i32 = 7;
+pub(crate) const SCHEMA_VERSION: i32 = 8;
+
+/// routing v2 目录允许声明的最低 reader 版本。
+///
+/// 此值在 Store State 的 DDL、初始化值与访问栅栏间共享；目录发生不兼容变化时
+/// 必须随迁移明确提升，不能由 Gate 静默放宽。
+pub(crate) const ROUTING_V2_MINIMUM_READER_VERSION: i64 = 8;
+
+/// routing v2 的设备本地 SQLite 命名空间。
+///
+/// 该命名空间在现有 SQL/WebDAV 同步与自动同步触发器中一律隔离，避免未来
+/// 凭据绑定或路由元数据被旧同步链路意外传播。
+pub(crate) const ROUTING_V2_TABLE_PREFIX: &str = "routing_v2_";
+
+/// 判断对象是否属于 routing v2 的设备本地命名空间。
+pub(crate) fn is_routing_v2_table(name: &str) -> bool {
+    name.trim()
+        .as_bytes()
+        .get(..ROUTING_V2_TABLE_PREFIX.len())
+        .is_some_and(|prefix| prefix.eq_ignore_ascii_case(ROUTING_V2_TABLE_PREFIX.as_bytes()))
+}
 
 /// 安全地序列化 JSON，避免 unwrap panic
 pub(crate) fn to_json_string<T: Serialize>(value: &T) -> Result<String, AppError> {
@@ -76,6 +98,9 @@ fn register_db_change_hook(conn: &Connection) {
     conn.update_hook(Some(
         |action: Action, _database: &str, table: &str, _row_id: i64| match action {
             Action::SQLITE_INSERT | Action::SQLITE_UPDATE | Action::SQLITE_DELETE => {
+                if is_routing_v2_table(table) {
+                    return;
+                }
                 crate::services::webdav_auto_sync::notify_db_changed(table);
             }
             _ => {}
@@ -97,6 +122,14 @@ impl Database {
         }
 
         let conn = Connection::open(&db_path).map_err(|e| AppError::Database(e.to_string()))?;
+
+        // 必须在任何 DDL、备份、seed 或启动清理之前拒绝未来数据库。否则旧 reader
+        // 的 CREATE/ALTER 可能已经改写了自己并不理解的结构。
+        let schema_version = Self::ensure_schema_version_supported(&conn)?;
+        // 对 v0..7 数据库，任何已存在的 routing v2 对象都意味着命名空间被未知
+        // 写入方占用，必须在 create/seed/backup/VACUUM 之前 fail closed；对 v8
+        // 数据库，目录缺失或 Store State 异常同样拒绝，绝不由启动流程静默重建。
+        Self::ensure_routing_v2_namespace_safe(&conn, schema_version)?;
 
         // 启用外键约束
         conn.execute("PRAGMA foreign_keys = ON;", [])
@@ -153,6 +186,22 @@ impl Database {
         Ok(db)
     }
 
+    /// 仅在未来 routing v2 repository 打开本机无 Secret 目录时使用的访问凭据。
+    ///
+    /// 该栅栏不表示 Vault、迁移或路由执行已经就绪；它只验证当前 SQLite 的 v8
+    /// 元数据状态可被本 reader 安全识别。
+    #[allow(dead_code)]
+    pub(crate) fn acquire_routing_v2_store_access(
+        &self,
+    ) -> Result<routing_v2_store_gate::RoutingV2StoreAccess, routing_v2_store_gate::StoreGateError>
+    {
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| routing_v2_store_gate::StoreGateError::Unavailable)?;
+        routing_v2_store_gate::acquire(&conn)
+    }
+
     /// 创建内存数据库（用于测试）
     pub fn memory() -> Result<Self, AppError> {
         let conn = Connection::open_in_memory().map_err(|e| AppError::Database(e.to_string()))?;
@@ -168,6 +217,8 @@ impl Database {
             conn: Mutex::new(conn),
         };
         db.create_tables()?;
+        // 与 init 保持一致：内存库同样只在 v7->v8 迁移事务内创建 routing v2 目录。
+        db.apply_schema_migrations()?;
         db.ensure_model_pricing_seeded()?;
 
         Ok(db)
